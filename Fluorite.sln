@@ -1,0 +1,62 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.31424.327
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Fluorite.Core", "Fluorite.Core\Fluorite.Core.csproj", "{56BDD96F-2989-473A-9D5A-B249F26E00FF}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Fluorite.Core.Tests", "Fluorite.Core.Tests\Fluorite.Core.Tests.csproj", "{AF4ACF31-5805-45F1-864F-0AC8393A5484}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Fluorite.Dynamic", "Fluorite.Dynamic\Fluorite.Dynamic.csproj", "{120FBCA6-01EB-4F6C-BB23-E0D7E4B03F00}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Fluorite", "Fluorite\Fluorite.csproj", "{78D26311-86C1-4503-BBA9-7D8B42E7FEDE}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Fluorite.Transport", "Fluorite.Transport\Fluorite.Transport.csproj", "{6B348EA7-BEC2-471B-8BC8-B326AB5C6834}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Fluorite.Serializer", "Fluorite.Serializer\Fluorite.Serializer.csproj", "{CB72DA10-347E-472F-A941-ACC21F129B93}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{001CDF80-B67E-4359-ADAE-4083964C9C6B}"
+	ProjectSection(SolutionItems) = preProject
+		.gitignore = .gitignore
+		Fluorite.sln.licenseheader = Fluorite.sln.licenseheader
+		LICENSE = LICENSE
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{56BDD96F-2989-473A-9D5A-B249F26E00FF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{56BDD96F-2989-473A-9D5A-B249F26E00FF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{56BDD96F-2989-473A-9D5A-B249F26E00FF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{56BDD96F-2989-473A-9D5A-B249F26E00FF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{AF4ACF31-5805-45F1-864F-0AC8393A5484}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{AF4ACF31-5805-45F1-864F-0AC8393A5484}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{AF4ACF31-5805-45F1-864F-0AC8393A5484}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{AF4ACF31-5805-45F1-864F-0AC8393A5484}.Release|Any CPU.Build.0 = Release|Any CPU
+		{120FBCA6-01EB-4F6C-BB23-E0D7E4B03F00}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{120FBCA6-01EB-4F6C-BB23-E0D7E4B03F00}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{120FBCA6-01EB-4F6C-BB23-E0D7E4B03F00}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{120FBCA6-01EB-4F6C-BB23-E0D7E4B03F00}.Release|Any CPU.Build.0 = Release|Any CPU
+		{78D26311-86C1-4503-BBA9-7D8B42E7FEDE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{78D26311-86C1-4503-BBA9-7D8B42E7FEDE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{78D26311-86C1-4503-BBA9-7D8B42E7FEDE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{78D26311-86C1-4503-BBA9-7D8B42E7FEDE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6B348EA7-BEC2-471B-8BC8-B326AB5C6834}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6B348EA7-BEC2-471B-8BC8-B326AB5C6834}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6B348EA7-BEC2-471B-8BC8-B326AB5C6834}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6B348EA7-BEC2-471B-8BC8-B326AB5C6834}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CB72DA10-347E-472F-A941-ACC21F129B93}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CB72DA10-347E-472F-A941-ACC21F129B93}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CB72DA10-347E-472F-A941-ACC21F129B93}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CB72DA10-347E-472F-A941-ACC21F129B93}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {2838F6AA-B705-44E7-B520-87BE34176079}
+	EndGlobalSection
+EndGlobal
