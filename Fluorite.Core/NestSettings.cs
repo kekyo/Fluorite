@@ -17,20 +17,26 @@
 //
 ////////////////////////////////////////////////////////////////////////////
 
+using Fluorite.Serialization;
+using Fluorite.Transport;
 using System.Runtime.CompilerServices;
 
-namespace Fluorite.Advanced
+namespace Fluorite
 {
-    public static class RawNestFactoryExtension
+    public sealed class NestSettings
     {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Nest Create(
-            this NestFactory _, NestSettings settings) =>
-            new Nest(settings, default!);
+        public readonly ISerializer Serializer;
+        public readonly ITransport Transport;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Nest Create(
-            this NestFactory _, NestSettings settings, IPeerProxyFactory factory) =>
-            new Nest(settings, factory);
+        private NestSettings(ISerializer serializer, ITransport transport)
+        {
+            this.Serializer = serializer;
+            this.Transport = transport;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static NestSettings Create(ISerializer serializer, ITransport transport) =>
+            new NestSettings(serializer, transport);
     }
 }

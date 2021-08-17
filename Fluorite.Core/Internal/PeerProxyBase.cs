@@ -17,14 +17,26 @@
 //
 ////////////////////////////////////////////////////////////////////////////
 
-using System;
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 
-namespace Fluorite.Advanced
+namespace Fluorite.Internal
 {
-    public interface ISerializer
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public abstract class PeerProxyBase
     {
-        ValueTask<ArraySegment<byte>> SerializeAsync(object body);
-        ValueTask<TData> DeserializeAsync<TData>(ArraySegment<byte> data);
+        [EditorBrowsable(EditorBrowsableState.Never)]
+        public readonly Nest Nest;
+
+        [EditorBrowsable(EditorBrowsableState.Never)]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        protected PeerProxyBase(Nest nest) =>
+            this.Nest = nest;
+
+        [EditorBrowsable(EditorBrowsableState.Never)]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        protected ValueTask<TResult> InvokeAsync<TResult>(string name, object[] args) =>
+            this.Nest.InvokeAsync<TResult>(name, args);
     }
 }

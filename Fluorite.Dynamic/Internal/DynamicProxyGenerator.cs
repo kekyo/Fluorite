@@ -21,17 +21,21 @@ using System;
 using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
-using System.Threading.Tasks;
 
 namespace Fluorite.Internal
 {
-    public static class ProxyGenerator
+    public static class DynamicProxyGenerator
     {
-        private static readonly MethodInfo internalInvokeAsyncMethod =
-            typeof(ProxyGenerator).GetMethod("InternalInvokeAsync", BindingFlags.Public | BindingFlags.Static)!;
-
-        public static ValueTask<TResult> InternalInvokeAsync<TResult>(Nest arg0, string name, object[] args) =>
-            arg0.InvokeAsync<TResult>(name, args);
+        private static readonly MethodInfo invokeAsyncMethod =
+            typeof(PeerProxyBase).GetMethod(
+                "InvokeAsync",
+                BindingFlags.NonPublic | BindingFlags.Instance)!;
+        private static readonly ConstructorInfo peerProxyBaseConstructor =
+            typeof(PeerProxyBase).GetConstructor(
+                BindingFlags.NonPublic | BindingFlags.Instance,
+                null,
+                new[] { typeof(Nest) },
+                null)!;
 
         private struct Proxy
         {
@@ -53,13 +57,8 @@ namespace Fluorite.Internal
             var typeBuilder = moduleBuilder.DefineType(
                 targetName,
                 TypeAttributes.Sealed | TypeAttributes.Class,
-                typeof(object),
+                typeof(PeerProxyBase),
                 new[] { interfaceType });
-
-            var nestFieldBuilder = typeBuilder.DefineField(
-                "nest",
-                typeof(Nest),
-                FieldAttributes.Private | FieldAttributes.InitOnly);
 
             var constructorBuilder = typeBuilder.DefineConstructor(
                 MethodAttributes.Public,
@@ -68,10 +67,8 @@ namespace Fluorite.Internal
 
             var constructorIlGenerator = constructorBuilder.GetILGenerator();
             constructorIlGenerator.Emit(OpCodes.Ldarg_0);
-            constructorIlGenerator.Emit(OpCodes.Call, typeof(object).GetConstructor(Type.EmptyTypes)!);
-            constructorIlGenerator.Emit(OpCodes.Ldarg_0);
             constructorIlGenerator.Emit(OpCodes.Ldarg_1);
-            constructorIlGenerator.Emit(OpCodes.Stfld, nestFieldBuilder);
+            constructorIlGenerator.Emit(OpCodes.Call, peerProxyBaseConstructor);
             constructorIlGenerator.Emit(OpCodes.Ret);
 
             foreach (var method in interfaceType.GetMethods())
@@ -98,9 +95,8 @@ namespace Fluorite.Internal
                 var ilGenerator = methodBuilder.GetILGenerator();
 
                 ilGenerator.Emit(OpCodes.Ldarg_0);
-                ilGenerator.Emit(OpCodes.Ldfld, nestFieldBuilder);
 
-                ilGenerator.Emit(OpCodes.Ldstr, method.Name);
+                ilGenerator.Emit(OpCodes.Ldstr, $"{interfaceType.FullName}.{method.Name}");
 
                 ilGenerator.Emit(OpCodes.Ldc_I4_S, (short)parameterTypes.Length);
                 ilGenerator.Emit(OpCodes.Newarr, typeof(object));
@@ -112,7 +108,7 @@ namespace Fluorite.Internal
                     ilGenerator.Emit(OpCodes.Dup);
                     ilGenerator.Emit(OpCodes.Ldc_I4_S, index);
                     ilGenerator.Emit(OpCodes.Conv_I);
-                    ilGenerator.Emit(OpCodes.Ldarg_S, index + 1);  // Skip this ref.
+                    ilGenerator.Emit(OpCodes.Ldarg_S, (short)(index + 1));  // Skip this ref.
                     if (parameterType.IsValueType)
                     {
                         ilGenerator.Emit(OpCodes.Box, parameterType);
@@ -122,7 +118,7 @@ namespace Fluorite.Internal
 
                 var valueTaskElementType = method.ReturnType.GenericTypeArguments[0];
                 var madeInternalInvokeMethod =
-                    internalInvokeAsyncMethod.MakeGenericMethod(valueTaskElementType);
+                    invokeAsyncMethod.MakeGenericMethod(valueTaskElementType);
                 ilGenerator.Emit(OpCodes.Call, madeInternalInvokeMethod);
 
                 ilGenerator.Emit(OpCodes.Ret);
@@ -156,9 +152,9 @@ namespace Fluorite.Internal
             return typeBuilder;
         }
 
-        internal static Func<Nest, TInterface> CreateProxyFactory<TInterface>()
+        internal static Func<Nest, TPeer> CreateProxyFactory<TPeer>()
         {
-            var interfaceType = typeof(TInterface);
+            var interfaceType = typeof(TPeer);
             var targetName = interfaceType.Name;
             var exactTargetName = $"{targetName}_{Guid.NewGuid():N}";
             var assenblyName = new AssemblyName(exactTargetName);
@@ -182,7 +178,9 @@ namespace Fluorite.Internal
 
             var factoryMethod = factoryType.GetMethod("CreateInstance")!;
 
-            return (Func<Nest, TInterface>)Delegate.CreateDelegate(typeof(Func<Nest, TInterface>), factoryMethod);
+            return (Func<Nest, TPeer>)Delegate.CreateDelegate(
+                typeof(Func<Nest, TPeer>),
+                factoryMethod);
         }
     }
 }

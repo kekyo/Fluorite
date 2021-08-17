@@ -17,20 +17,19 @@
 //
 ////////////////////////////////////////////////////////////////////////////
 
-using System.Runtime.CompilerServices;
+using System;
+using System.Threading.Tasks;
 
-namespace Fluorite.Advanced
+namespace Fluorite.Serialization
 {
-    public static class RawNestFactoryExtension
+    public interface IPayloadContainerView
     {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Nest Create(
-            this NestFactory _, NestSettings settings) =>
-            new Nest(settings, default!);
+        Guid Identity { get; }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Nest Create(
-            this NestFactory _, NestSettings settings, IPeerProxyFactory factory) =>
-            new Nest(settings, factory);
+        string Name { get; }
+
+        int DataCount { get; }
+
+        ValueTask<object?> DeserializeDataAsync(int index, Type type);
     }
 }

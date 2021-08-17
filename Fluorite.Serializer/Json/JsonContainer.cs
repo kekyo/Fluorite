@@ -17,20 +17,39 @@
 //
 ////////////////////////////////////////////////////////////////////////////
 
+using Fluorite.Serialization;
+using System;
 using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
 
-namespace Fluorite.Advanced
+namespace Fluorite.Json
 {
-    public static class RawNestFactoryExtension
+    internal sealed class JsonContainer : PayloadContainerBase
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Nest Create(
-            this NestFactory _, NestSettings settings) =>
-            new Nest(settings, default!);
+        public JsonContainer()
+        {
+        }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Nest Create(
-            this NestFactory _, NestSettings settings, IPeerProxyFactory factory) =>
-            new Nest(settings, factory);
+        public JsonContainer(Guid identity, string name, object data) :
+            base(identity, name) =>
+            this.Payload = data;
+
+        public object? Payload { get; set; }
+
+        public override int DataCount =>
+            this.Payload is Newtonsoft.Json.Linq.JArray array ?
+                array.Count :
+                1;
+
+        public override ValueTask<object?> DeserializeDataAsync(int index, Type type) =>
+            new ValueTask<object?>(
+                this.Payload switch
+                {
+                    Newtonsoft.Json.Linq.JArray array => array[index].ToObject(type)!,
+                    Newtonsoft.Json.Linq.JToken token => token.ToObject(type),
+                    _ => null!
+                });
     }
 }

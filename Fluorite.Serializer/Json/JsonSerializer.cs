@@ -17,9 +17,9 @@
 //
 ////////////////////////////////////////////////////////////////////////////
 
-using Fluorite.Advanced;
+using Fluorite.Serialization;
 using System;
-using System.IO;
+using System.Text;
 using System.Threading.Tasks;
 
 namespace Fluorite.Json
@@ -30,28 +30,22 @@ namespace Fluorite.Json
         {
         }
 
-        public ValueTask<ArraySegment<byte>> SerializeAsync(object body)
+        public string PayloadContentType =>
+            "application/json";
+
+        public ValueTask<ArraySegment<byte>> SerializeAsync(Guid identity, string name, object data)
         {
-            var js = new Newtonsoft.Json.JsonSerializer();
-
-            var ms = new MemoryStream();
-            var tw = new StreamWriter(ms);
-            var jw = new Newtonsoft.Json.JsonTextWriter(tw);
-
-            js.Serialize(jw, body);
-
-            return new ValueTask<ArraySegment<byte>>(new ArraySegment<byte>(ms.ToArray()));
+            var container = new JsonContainer(identity, name, data);
+            var jsonString = Newtonsoft.Json.JsonConvert.SerializeObject(container);
+            var bytes = Encoding.UTF8.GetBytes(jsonString);
+            return new ValueTask<ArraySegment<byte>>(new ArraySegment<byte>(bytes));
         }
 
-        public ValueTask<TData> DeserializeAsync<TData>(ArraySegment<byte> data)
+        public ValueTask<IPayloadContainerView> DeserializeAsync(ArraySegment<byte> data)
         {
-            var js = new Newtonsoft.Json.JsonSerializer();
-
-            var ms = new MemoryStream(data.Array!, 0, data.Count);
-            var tr = new StreamReader(ms);
-            var jr = new Newtonsoft.Json.JsonTextReader(tr);
-
-            return new ValueTask<TData>(js.Deserialize<TData>(jr)!);
+            var jsonString = Encoding.UTF8.GetString(data.Array!, data.Offset, data.Count);
+            var container = Newtonsoft.Json.JsonConvert.DeserializeObject<JsonContainer>(jsonString);
+            return new ValueTask<IPayloadContainerView>(container);
         }
 
         public static readonly JsonSerializer Instance =

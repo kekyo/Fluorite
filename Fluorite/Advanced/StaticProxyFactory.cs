@@ -17,20 +17,24 @@
 //
 ////////////////////////////////////////////////////////////////////////////
 
+using System;
 using System.Runtime.CompilerServices;
 
 namespace Fluorite.Advanced
 {
-    public static class RawNestFactoryExtension
+    public sealed class StaticProxyFactory :
+        IPeerProxyFactory
     {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Nest Create(
-            this NestFactory _, NestSettings settings) =>
-            new Nest(settings, default!);
+        private StaticProxyFactory()
+        {
+        }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Nest Create(
-            this NestFactory _, NestSettings settings, IPeerProxyFactory factory) =>
-            new Nest(settings, factory);
+        public TPeer CreateInstance<TPeer>(Nest nest)
+            where TPeer : class, IHost =>
+            throw new NotImplementedException(); // TODO:
+
+        public static readonly StaticProxyFactory Instance =
+            new StaticProxyFactory();
     }
 }

@@ -17,20 +17,43 @@
 //
 ////////////////////////////////////////////////////////////////////////////
 
+using System;
 using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
 
-namespace Fluorite.Advanced
+namespace Fluorite.Serialization
 {
-    public static class RawNestFactoryExtension
+#if !NETCOREAPP1_0 && !NETSTANDARD1_3
+    [Serializable]
+#endif
+    public abstract class PayloadContainerBase : IPayloadContainerView
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Nest Create(
-            this NestFactory _, NestSettings settings) =>
-            new Nest(settings, default!);
+        protected PayloadContainerBase()
+        {
+            this.Identity = default!;
+            this.Name = default!;
+        }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Nest Create(
-            this NestFactory _, NestSettings settings, IPeerProxyFactory factory) =>
-            new Nest(settings, factory);
+        protected PayloadContainerBase(Guid identity, string name)
+        {
+            this.Identity = identity.ToString("N");
+            this.Name = name;
+        }
+
+        public string Identity { get; set; }
+
+        Guid IPayloadContainerView.Identity =>
+            new Guid(this.Identity);
+
+        public string Name { get; set; }
+
+        public abstract int DataCount { get; }
+
+        public abstract ValueTask<object?> DeserializeDataAsync(int index, Type type);
+
+        public override string ToString() =>
+            $"{this.Identity}: {this.Name}";
     }
 }

@@ -17,10 +17,12 @@
 //
 ////////////////////////////////////////////////////////////////////////////
 
-namespace Fluorite.Advanced
+namespace Fluorite
 {
-    public interface IProxyFactory<TInterface>
+    public sealed class NestFactory
     {
-        TInterface CreateInstance(Nest<TInterface> invoker);
+        internal NestFactory()
+        {
+        }
     }
 }

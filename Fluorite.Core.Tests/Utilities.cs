@@ -17,20 +17,28 @@
 //
 ////////////////////////////////////////////////////////////////////////////
 
-using System.Runtime.CompilerServices;
+using Fluorite.Json;
+using Fluorite.Serialization;
+using Fluorite.Transport;
 
-namespace Fluorite.Advanced
+namespace Fluorite
 {
-    public static class RawNestFactoryExtension
+    public static class Utilities
     {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Nest Create(
-            this NestFactory _, NestSettings settings) =>
-            new Nest(settings, default!);
+        public static (Nest server, Nest client) CreateDirectAttachedNestPair(ISerializer serializer)
+        {
+            // Dumb transport set are marshaling only sandwiches serializer.
+            var transports = DirectAttachedTransport.Create();
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Nest Create(
-            this NestFactory _, NestSettings settings, IPeerProxyFactory factory) =>
-            new Nest(settings, factory);
+            var server = Nest.Factory.Create(
+                NestSettings.Create(serializer, transports.Transport1));
+            var client = Nest.Factory.Create(
+                NestSettings.Create(serializer, transports.Transport2));
+
+            return (server, client);
+        }
+
+        public static (Nest server, Nest client) CreateDirectAttachedNestPair() =>
+            CreateDirectAttachedNestPair(JsonSerializer.Instance);
     }
 }

@@ -18,17 +18,18 @@
 ////////////////////////////////////////////////////////////////////////////
 
 using Fluorite.Json;
+using Fluorite.Transport;
 
 namespace Fluorite.Advanced
 {
     public static class NestSerializerFactoryExtension
     {
-        public static Nest<TInterface> Create<TInterface>(
+        public static Nest Create(
             this NestFactory _, ITransport transport) =>
-            _.Create<TInterface>(NestSettings.Create(JsonSerializer.Instance, transport));
+            _.Create(NestSettings.Create(JsonSerializer.Instance, transport));
 
-        public static Nest<TInterface> Create<TInterface>(
-            this NestFactory _, ITransport transport, IProxyFactory<TInterface> factory) =>
-            _.Create<TInterface>(NestSettings.Create(JsonSerializer.Instance, transport), factory);
+        public static Nest Create(
+            this NestFactory _, ITransport transport, IPeerProxyFactory factory) =>
+            _.Create(NestSettings.Create(JsonSerializer.Instance, transport), factory);
     }
 }

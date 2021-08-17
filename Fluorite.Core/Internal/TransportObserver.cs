@@ -17,20 +17,49 @@
 //
 ////////////////////////////////////////////////////////////////////////////
 
+using System;
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 
-namespace Fluorite.Advanced
+namespace Fluorite.Internal
 {
-    public static class RawNestFactoryExtension
+    internal sealed class TransportObserver :
+        IObserver<ArraySegment<byte>>
     {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Nest Create(
-            this NestFactory _, NestSettings settings) =>
-            new Nest(settings, default!);
+        private readonly Nest parent;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Nest Create(
-            this NestFactory _, NestSettings settings, IPeerProxyFactory factory) =>
-            new Nest(settings, factory);
+        public TransportObserver(Nest parent) =>
+            this.parent = parent;
+
+        public async void OnNext(ArraySegment<byte> data)
+        {
+            try
+            {
+                await this.parent.OnNextAsync(data).
+                    ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine(ex);
+            }
+        }
+
+        public void OnError(Exception ex)
+        {
+            Debug.WriteLine(ex);
+        }
+
+        public void OnCompleted()
+        {
+            try
+            {
+                this.parent.OnCompleted();
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine(ex);
+            }
+        }
     }
 }

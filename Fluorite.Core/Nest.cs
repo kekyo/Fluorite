@@ -18,79 +18,240 @@
 ////////////////////////////////////////////////////////////////////////////
 
 using Fluorite.Advanced;
+using Fluorite.Internal;
+using Fluorite.Serialization;
+using Fluorite.Transport;
 using System;
-using System.Runtime.CompilerServices;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace Fluorite
 {
-    public sealed class NestSettings
+    public sealed class Nest
     {
-        public readonly ISerializer Serializer;
-        public readonly ITransport Transport;
+        private readonly ISerializer serializer;
+        private readonly IPeerProxyFactory factory;
 
-        private NestSettings(ISerializer serializer, ITransport transport)
+        private readonly Dictionary<string, HostMethod> hostMethods = new();
+        private readonly Dictionary<Guid, Awaiter> awaits = new();
+
+        private ITransport? transport;
+        private IDisposable? disposer;
+
+        internal Nest(NestSettings settings, IPeerProxyFactory factory)
         {
-            this.Serializer = serializer;
-            this.Transport = transport;
+            this.factory = factory;
+            this.serializer = settings.Serializer;
+            this.transport = settings.Transport;
+
+            this.transport.SetPayloadContentType(this.serializer.PayloadContentType);
+            this.disposer = this.transport.Subscribe(new TransportObserver(this));
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static NestSettings Create(ISerializer serializer, ITransport transport) =>
-            new NestSettings(serializer, transport);
-    }
-
-    public sealed class NestFactory
-    {
-        internal NestFactory()
+        public async ValueTask ShutdownAsync()
         {
-        }
-    }
-
-    public abstract class Nest
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private protected Nest()
-        {
-        }
-
-        internal abstract ValueTask<TResult> InvokeAsync<TResult>(string name, object[] args);
-
-        public static readonly NestFactory Factory =
-            new NestFactory();
-    }
-
-    public sealed class Nest<TInterface> : Nest
-    {
-        static Nest()
-        {
-            if (!typeof(TInterface).IsInterface)
+            if (this.disposer != null)
             {
-                throw new ArgumentException($"It isn't interface type: Type={typeof(TInterface).FullName}");
+                lock (this.hostMethods)
+                {
+                    this.hostMethods.Clear();
+                }
+
+                this.CancelAwaitings();
+
+                this.disposer.Dispose();
+                this.disposer = null;
+            }
+
+            if (this.transport != null)
+            {
+                await this.transport.ShutdownAsync().
+                    ConfigureAwait(false);
+                this.transport = null;
             }
         }
 
-        private readonly ISerializer serializer;
-        private readonly ITransport transport;
-
-        internal Nest(NestSettings settings)
+        private void CancelAwaitings()
         {
-            this.Peer = default!;
-            this.serializer = settings.Serializer;
-            this.transport = settings.Transport;
+            lock (this.awaits)
+            {
+                foreach (var entry in this.awaits)
+                {
+                    entry.Value.SetCanceled();
+                }
+
+                this.awaits.Clear();
+            }
         }
 
-        internal Nest(NestSettings settings, IProxyFactory<TInterface> factory)
+        public void Register(IHost host)
         {
-            var proxy = factory.CreateInstance(this);
-            this.Peer = proxy;
-            this.serializer = settings.Serializer;
-            this.transport = settings.Transport;
+            lock (this.hostMethods)
+            {
+                foreach (var type in host.GetType().GetInterfaces().
+                    Where(it => typeof(IHost).IsAssignableFrom(it)))
+                {
+                    foreach (var method in type.GetMethods())
+                    {
+                        var name = $"{type.FullName}.{method.Name}";
+                        this.hostMethods.Add(name, HostMethod.Create(host, method));
+                    }
+                }
+            }
         }
 
-        public TInterface Peer { get; }
+        public void Unregister(IHost host)
+        {
+            lock (this.hostMethods)
+            {
+                foreach (var type in host.GetType().GetInterfaces().
+                    Where(it => typeof(IHost).IsAssignableFrom(it)))
+                {
+                    foreach (var method in type.GetMethods())
+                    {
+                        var name = $"{type.FullName}.{method.Name}";
+                        this.hostMethods.Remove(name);
+                    }
+                }
+            }
+        }
 
-        internal override ValueTask<TResult> InvokeAsync<TResult>(string name, object[] args) =>
-            throw new InvalidOperationException();
+        public TPeer GetPeer<TPeer>()
+            where TPeer : class, IHost =>
+            this.factory?.CreateInstance<TPeer>(this)!;
+
+        internal async ValueTask<TResult> InvokeAsync<TResult>(string name, object[] args)
+        {
+            Debug.Assert(!string.IsNullOrWhiteSpace(name));
+            Debug.Assert(args != null);
+
+            var identity = Guid.NewGuid();
+
+            var data = await this.serializer.SerializeAsync(identity, name, args!).
+                ConfigureAwait(false);
+
+            var awaiter = new Awaiter<TResult>();
+            lock (this.awaits)
+            {
+                this.awaits.Add(identity, awaiter);
+            }
+
+            try
+            {
+                await this.transport!.SendAsync(data).
+                    ConfigureAwait(false);
+            }
+            catch
+            {
+                lock (this.awaits)
+                {
+                    this.awaits.Remove(identity);
+                }
+                throw;
+            }
+
+            return await awaiter.Task.
+                ConfigureAwait(false);
+        }
+
+        private static async ValueTask ProceedAwaiterAsync(
+            IPayloadContainerView container, Awaiter awaiter)
+        {
+            Debug.Assert(container.DataCount == 1);
+
+            if (container.Name == "Exception")
+            {
+                var message = await container.DeserializeDataAsync(0, typeof(string)).
+                    ConfigureAwait(false);
+                awaiter.SetException((message != null) ? new Exception((string)message) : new Exception());
+            }
+            else
+            {
+                Debug.Assert(container.Name == "Result");
+
+                try
+                {
+                    var result = await container.DeserializeDataAsync(0, awaiter.ResultType).
+                        ConfigureAwait(false);
+                    awaiter.SetResult(result);
+                }
+                catch (Exception ex)
+                {
+                    awaiter.SetException(ex);
+                }
+            }
+        }
+
+        private async ValueTask ProceedInvokingAsync(IPayloadContainerView container)
+        {
+            HostMethod? hostMethod = null;
+            lock (this.hostMethods)
+            {
+                this.hostMethods.TryGetValue(container.Name, out hostMethod);
+            }
+
+            if (hostMethod != null)
+            {
+                object? result;
+                string name;
+                try
+                {
+                    result = await hostMethod.InvokeAsync(container).
+                        ConfigureAwait(false);
+                    name = "Result";
+                }
+                catch (Exception ex)
+                {
+                    result = ex.Message;
+                    name = "Exception";
+                }
+
+                var resultData = await this.serializer.SerializeAsync(container.Identity, name, new[] { result }).
+                    ConfigureAwait(false);
+                await this.transport!.SendAsync(resultData).
+                    ConfigureAwait(false);
+            }
+            else
+            {
+                var resultData = await this.serializer.SerializeAsync(container.Identity, "Exception", new[] { "Method not found." }).
+                    ConfigureAwait(false);
+                await this.transport!.SendAsync(resultData).
+                    ConfigureAwait(false);
+            }
+        }
+
+        internal async ValueTask OnNextAsync(ArraySegment<byte> data)
+        {
+            var container = await this.serializer.DeserializeAsync(data).
+                ConfigureAwait(false);
+
+            Awaiter? awaiter = null;
+            lock (this.awaits)
+            {
+                if (this.awaits.TryGetValue(container.Identity, out awaiter))
+                {
+                    this.awaits.Remove(container.Identity);
+                }
+            }
+
+            if (awaiter != null)
+            {
+                await ProceedAwaiterAsync(container, awaiter).
+                    ConfigureAwait(false);
+            }
+            else
+            {
+                await this.ProceedInvokingAsync(container).
+                    ConfigureAwait(false);
+            }
+        }
+
+        internal void OnCompleted() =>
+            this.CancelAwaitings();
+
+        public static readonly NestFactory Factory =
+            new NestFactory();
     }
 }

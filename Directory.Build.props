@@ -1,0 +1,38 @@
+<Project>
+
+  <PropertyGroup>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    
+    <DebugType Condition="'$(Configuration)' == 'Debug'">full</DebugType>
+    <DebugType Condition="('$(Configuration)' == 'Release') AND ('$(TargetFrameworkIdentifier)' == '.NETFramework')">pdbonly</DebugType>
+    <DebugType Condition="('$(Configuration)' == 'Release') AND ('$(TargetFrameworkIdentifier)' != '.NETFramework')">portable</DebugType>
+    <DebugSymbols>true</DebugSymbols>
+    <CheckEolTargetFramework>false</CheckEolTargetFramework>
+    <Deterministic>true</Deterministic>
+    <EmbedUntrackedSources Condition="'$(Configuration)' == 'Release'">true</EmbedUntrackedSources>
+    <ContinuousIntegrationBuild Condition="'$(Configuration)' == 'Release'">true</ContinuousIntegrationBuild>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <RepositoryUrl>https://github.com/kekyo/Fluorite.git</RepositoryUrl>
+
+    <RootNamespace>Fluorite</RootNamespace>
+
+    <Product>Fluorite</Product>
+    <Trademark>Fluorite</Trademark>
+    <Copyright>Copyright (c) 2021 Kouji Matsui</Copyright>
+    <Description>Simplest and fully-customizable RPC standalone infrastructure.</Description>
+
+    <Company>Kouji Matsui (@kozy_kekyo, @kekyo2)</Company>
+    <Authors>Kouji Matsui (@kozy_kekyo, @kekyo2)</Authors>
+    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/kekyo/Fluorite.git</PackageProjectUrl>
+    <PackageIcon>Fluorite.100.png</PackageIcon>
+    <PackageTags>simple;async;bidirectional;websocket;json;transport</PackageTags>
+    <AllowedOutputExtensionsInPackageBuildOutputFolder>.pdb</AllowedOutputExtensionsInPackageBuildOutputFolder>
+    <GenerateLibraryLayout>true</GenerateLibraryLayout>
+    <NoWarn>$(NoWarn);NU1605;NU1701</NoWarn>
+  </PropertyGroup>
+
+</Project>

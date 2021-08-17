@@ -17,20 +17,18 @@
 //
 ////////////////////////////////////////////////////////////////////////////
 
-using System.Runtime.CompilerServices;
+using System;
+using System.Threading.Tasks;
 
-namespace Fluorite.Advanced
+namespace Fluorite.Transport
 {
-    public static class RawNestFactoryExtension
+    public interface ITransport :
+        IObservable<ArraySegment<byte>>
     {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Nest Create(
-            this NestFactory _, NestSettings settings) =>
-            new Nest(settings, default!);
+        void SetPayloadContentType(string contentType);
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Nest Create(
-            this NestFactory _, NestSettings settings, IPeerProxyFactory factory) =>
-            new Nest(settings, factory);
+        ValueTask SendAsync(ArraySegment<byte> data);
+
+        ValueTask ShutdownAsync();
     }
 }

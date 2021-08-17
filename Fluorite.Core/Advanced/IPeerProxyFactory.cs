@@ -17,13 +17,11 @@
 //
 ////////////////////////////////////////////////////////////////////////////
 
-using System;
-using System.Threading.Tasks;
-
 namespace Fluorite.Advanced
 {
-    public interface ITransport : IObservable<ArraySegment<byte>>
+    public interface IPeerProxyFactory
     {
-        ValueTask SendAsync(ArraySegment<byte> data);
+        TPeer CreateInstance<TPeer>(Nest nest)
+            where TPeer : class, IHost;
     }
 }

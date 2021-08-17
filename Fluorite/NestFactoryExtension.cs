@@ -17,42 +17,92 @@
 //
 ////////////////////////////////////////////////////////////////////////////
 
+using Fluorite.Advanced;
 using Fluorite.Json;
-using Fluorite.WebSocket;
+using Fluorite.Transport;
+using Fluorite.WebSockets;
 using System;
 using System.Net;
+using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 
 namespace Fluorite
 {
     public static class NestFactoryExtension
     {
-        public static Nest<TInterface> Create<TInterface>(
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Nest Create(
             this NestFactory _, NestSettings settings) =>
-            _.Create<TInterface>(settings);
+            _.Create(settings, StaticProxyFactory.Instance);
 
-        public static async ValueTask<Nest<TInterface>> ConnectAsync<TInterface>(
-            this NestFactory _, string serverAddress, int port, bool performSecureConnection)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Nest Create(
+            this NestFactory _, ITransport transport) =>
+            _.Create(NestSettings.Create(JsonSerializer.Instance, transport));
+
+        public static async ValueTask<Nest> ConnectAsync(
+            this NestFactory _, string serverAddress, int port, bool performSecureConnection, params IHost[] registeringObjects)
         {
-            var transport = new WebSocketClientTransport();
+            var transport = WebSocketClientTransport.Create();
+            var nest = _.Create(transport);
+            foreach (var registeringObject in registeringObjects)
+            {
+                nest.Register(registeringObject);
+            }
             await transport.ConnectAsync(serverAddress, port, performSecureConnection).ConfigureAwait(false);
-            return _.Create<TInterface>(NestSettings.Create(JsonSerializer.Instance, transport));
+            return nest;
         }
 
-        public static async ValueTask<Nest<TInterface>> ConnectAsync<TInterface>(
-            this NestFactory _, EndPoint serverEndPoint, bool performSecureConnection)
+        public static async ValueTask<Nest> ConnectAsync(
+            this NestFactory _, EndPoint serverEndPoint, bool performSecureConnection, params IHost[] registeringObjects)
         {
-            var transport = new WebSocketClientTransport();
+            var transport = WebSocketClientTransport.Create();
+            var nest = _.Create(transport);
+            foreach (var registeringObject in registeringObjects)
+            {
+                nest.Register(registeringObject);
+            }
             await transport.ConnectAsync(serverEndPoint, performSecureConnection).ConfigureAwait(false);
-            return _.Create<TInterface>(NestSettings.Create(JsonSerializer.Instance, transport));
+            return nest;
         }
 
-        public static async ValueTask<Nest<TInterface>> ConnectAsync<TInterface>(
-            this NestFactory _, Uri serverEndPoint)
+        public static async ValueTask<Nest> ConnectAsync(
+            this NestFactory _, Uri serverEndPoint, params IHost[] registeringObjects)
         {
-            var transport = new WebSocketClientTransport();
+            var transport = WebSocketClientTransport.Create();
+            var nest = _.Create(transport);
+            foreach (var registeringObject in registeringObjects)
+            {
+                nest.Register(registeringObject);
+            }
             await transport.ConnectAsync(serverEndPoint).ConfigureAwait(false);
-            return _.Create<TInterface>(NestSettings.Create(JsonSerializer.Instance, transport));
+            return nest;
+        }
+
+        public static Nest StartServer(
+            this NestFactory _, int serverPort, bool requiredSecureConnection, params IHost[] registeringObjects)
+        {
+            var transport = WebSocketServerTransport.Create();
+            var nest = _.Create(transport);
+            foreach (var registeringObject in registeringObjects)
+            {
+                nest.Register(registeringObject);
+            }
+            transport.Start(serverPort, requiredSecureConnection);
+            return nest;
+        }
+
+        public static Nest StartServer(
+            this NestFactory _, string listenEndPointUrl, params IHost[] registeringObjects)
+        {
+            var transport = WebSocketServerTransport.Create();
+            var nest = _.Create(transport);
+            foreach (var registeringObject in registeringObjects)
+            {
+                nest.Register(registeringObject);
+            }
+            transport.Start(listenEndPointUrl);
+            return nest;
         }
     }
 }

@@ -17,20 +17,46 @@
 //
 ////////////////////////////////////////////////////////////////////////////
 
+using System;
 using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
 
-namespace Fluorite.Advanced
+namespace Fluorite.Internal
 {
-    public static class RawNestFactoryExtension
+    internal abstract class Awaiter
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Nest Create(
-            this NestFactory _, NestSettings settings) =>
-            new Nest(settings, default!);
+        private protected Awaiter()
+        {
+        }
+
+        public abstract Type ResultType { get; }
+
+        public abstract void SetResult(object? result);
+        public abstract void SetException(Exception ex);
+        public abstract void SetCanceled();
+    }
+
+    internal sealed class Awaiter<TData> : Awaiter
+    {
+        private readonly TaskCompletionSource<TData> tcs = new();
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Nest Create(
-            this NestFactory _, NestSettings settings, IPeerProxyFactory factory) =>
-            new Nest(settings, factory);
+        public Awaiter()
+        {
+        }
+
+        public Task<TData> Task =>
+            this.tcs.Task;
+
+        public override Type ResultType =>
+            typeof(TData);
+
+        public override void SetResult(object? result) =>
+            this.tcs.TrySetResult((TData)result!);
+        public override void SetException(Exception ex) =>
+            this.tcs.TrySetException(ex);
+        public override void SetCanceled() =>
+            this.tcs.TrySetCanceled();
     }
 }
