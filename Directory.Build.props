@@ -18,6 +18,9 @@
     <RepositoryUrl>https://github.com/kekyo/Fluorite.git</RepositoryUrl>
 
     <RootNamespace>Fluorite</RootNamespace>
+    <ProduceReferenceAssembly>true</ProduceReferenceAssembly>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1570;CS1591</NoWarn>
 
     <Product>Fluorite</Product>
     <Trademark>Fluorite</Trademark>
@@ -34,5 +37,15 @@
     <GenerateLibraryLayout>true</GenerateLibraryLayout>
     <NoWarn>$(NoWarn);NU1605;NU1701</NoWarn>
   </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="RelaxVersioner" Version="2.3.2" PrivateAssets="All" />
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.2" PrivateAssets="All" />
+    <PackageReference Include="System.Threading.Tasks.Extensions" Version="4.5.4" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(Configuration)' == 'Release'">
+    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.0.0" PrivateAssets="All" />
+  </ItemGroup>
 
 </Project>

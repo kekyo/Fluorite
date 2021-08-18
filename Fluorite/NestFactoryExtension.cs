@@ -31,6 +31,16 @@ namespace Fluorite
     public static class NestFactoryExtension
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void Register<TPeer>(Func<Nest, TPeer> generator)
+            where TPeer : class, IHost =>
+            StaticProxyFactory.Instance.Register(generator);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void Unregister<TPeer>()
+            where TPeer : class, IHost =>
+            StaticProxyFactory.Instance.Unregister<TPeer>();
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Nest Create(
             this NestFactory _, NestSettings settings) =>
             _.Create(settings, StaticProxyFactory.Instance);

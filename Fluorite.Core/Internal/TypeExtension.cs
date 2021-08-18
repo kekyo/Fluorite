@@ -26,7 +26,7 @@ namespace Fluorite.Internal
 {
     internal static class TypeExtension
     {
-#if NETCOREAPP1_0 || NETSTANDARD1_3
+#if NETSTANDARD1_3
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool IsValueType(this Type type) =>
             type.GetTypeInfo().IsValueType;
@@ -34,6 +34,10 @@ namespace Fluorite.Internal
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool IsGenericType(this Type type) =>
             type.GetTypeInfo().IsGenericType;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static bool IsInterface(this Type type) =>
+            type.GetTypeInfo().IsInterface;
 #else
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool IsValueType(this Type type) =>
@@ -42,6 +46,10 @@ namespace Fluorite.Internal
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool IsGenericType(this Type type) =>
             type.IsGenericType;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static bool IsInterface(this Type type) =>
+            type.IsInterface;
 #endif
 
 #if NETSTANDARD1_3

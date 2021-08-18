@@ -23,7 +23,7 @@ using System.Threading.Tasks;
 
 namespace Fluorite.Serialization
 {
-#if !NETCOREAPP1_0 && !NETSTANDARD1_3
+#if !NETSTANDARD1_3
     [Serializable]
 #endif
     public abstract class PayloadContainerBase : IPayloadContainerView
