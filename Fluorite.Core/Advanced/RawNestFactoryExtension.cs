@@ -17,6 +17,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////
 
+using Fluorite.Proxy;
 using System.Runtime.CompilerServices;
 
 namespace Fluorite.Advanced

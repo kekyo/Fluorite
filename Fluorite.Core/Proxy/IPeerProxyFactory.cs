@@ -17,20 +17,11 @@
 //
 ////////////////////////////////////////////////////////////////////////////
 
-using Fluorite.Json;
-using Fluorite.Proxy;
-using Fluorite.Transport;
-
-namespace Fluorite.Advanced
+namespace Fluorite.Proxy
 {
-    public static class NestSerializerFactoryExtension
+    public interface IPeerProxyFactory
     {
-        public static Nest Create(
-            this NestFactory _, ITransport transport) =>
-            _.Create(NestSettings.Create(JsonSerializer.Instance, transport));
-
-        public static Nest Create(
-            this NestFactory _, ITransport transport, IPeerProxyFactory factory) =>
-            _.Create(NestSettings.Create(JsonSerializer.Instance, transport), factory);
+        TPeer CreateInstance<TPeer>(Nest nest)
+            where TPeer : class, IHost;
     }
 }

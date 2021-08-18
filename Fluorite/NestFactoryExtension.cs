@@ -19,6 +19,7 @@
 
 using Fluorite.Advanced;
 using Fluorite.Json;
+using Fluorite.Proxy;
 using Fluorite.Transport;
 using Fluorite.WebSockets;
 using System;

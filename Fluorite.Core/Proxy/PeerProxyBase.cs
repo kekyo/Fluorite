@@ -17,11 +17,23 @@
 //
 ////////////////////////////////////////////////////////////////////////////
 
-namespace Fluorite.Advanced
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
+
+namespace Fluorite.Proxy
 {
-    public interface IPeerProxyFactory
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public abstract class PeerProxyBase
     {
-        TPeer CreateInstance<TPeer>(Nest nest)
-            where TPeer : class, IHost;
+        private readonly Nest nest;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        protected PeerProxyBase(Nest nest) =>
+            this.nest = nest;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        protected ValueTask<TResult> InvokeAsync<TResult>(string name, params object[] args) =>
+            this.nest.InvokeAsync<TResult>(name, args);
     }
 }

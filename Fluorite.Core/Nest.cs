@@ -17,8 +17,8 @@
 //
 ////////////////////////////////////////////////////////////////////////////
 
-using Fluorite.Advanced;
 using Fluorite.Internal;
+using Fluorite.Proxy;
 using Fluorite.Serialization;
 using Fluorite.Transport;
 using System;

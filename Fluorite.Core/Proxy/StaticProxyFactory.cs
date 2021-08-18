@@ -21,7 +21,7 @@ using Fluorite.Internal;
 using System;
 using System.Collections.Generic;
 
-namespace Fluorite.Advanced
+namespace Fluorite.Proxy
 {
     public sealed class StaticProxyFactory :
         IPeerProxyFactory

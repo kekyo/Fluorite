@@ -17,26 +17,36 @@
 //
 ////////////////////////////////////////////////////////////////////////////
 
-using System.ComponentModel;
+using Fluorite.Internal;
+using System;
 using System.Runtime.CompilerServices;
-using System.Threading.Tasks;
 
-namespace Fluorite.Internal
+namespace Fluorite.Proxy
 {
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public abstract class PeerProxyBase
+    public sealed class DynamicProxyFactory :
+        IPeerProxyFactory
     {
-        [EditorBrowsable(EditorBrowsableState.Never)]
-        public readonly Nest Nest;
+        private static class InternalFactory<TPeer>
+            where TPeer : class, IHost
+        {
+            private static readonly Func<Nest, TPeer>? factory =
+                DynamicProxyGenerator.CreateProxyFactory<TPeer>();
 
-        [EditorBrowsable(EditorBrowsableState.Never)]
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        protected PeerProxyBase(Nest nest) =>
-            this.Nest = nest;
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public static TPeer CreateInstance(Nest nest) =>
+                factory!(nest);
+        }
 
-        [EditorBrowsable(EditorBrowsableState.Never)]
+        private DynamicProxyFactory()
+        {
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        protected ValueTask<TResult> InvokeAsync<TResult>(string name, object[] args) =>
-            this.Nest.InvokeAsync<TResult>(name, args);
+        public TPeer CreateInstance<TPeer>(Nest nest)
+            where TPeer : class, IHost =>
+            InternalFactory<TPeer>.CreateInstance(nest);
+
+        public static readonly DynamicProxyFactory Instance =
+            new DynamicProxyFactory();
     }
 }

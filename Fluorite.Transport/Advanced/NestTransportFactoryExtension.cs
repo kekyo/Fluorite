@@ -17,6 +17,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////
 
+using Fluorite.Proxy;
 using Fluorite.Serialization;
 using Fluorite.WebSockets;
 using System;
@@ -49,6 +50,30 @@ namespace Fluorite.Advanced
             var transport = WebSocketClientTransport.Create();
             await transport.ConnectAsync(serverEndPoint).ConfigureAwait(false);
             return _.Create(NestSettings.Create(serializer, transport));
+        }
+
+        public static async ValueTask<Nest> ConnectAsync(
+            this NestFactory _, string serverAddress, int port, bool performSecureConnection, ISerializer serializer, IPeerProxyFactory factory)
+        {
+            var transport = WebSocketClientTransport.Create();
+            await transport.ConnectAsync(serverAddress, port, performSecureConnection).ConfigureAwait(false);
+            return _.Create(NestSettings.Create(serializer, transport), factory);
+        }
+
+        public static async ValueTask<Nest> ConnectAsync(
+            this NestFactory _, EndPoint serverEndPoint, bool performSecureConnection, ISerializer serializer, IPeerProxyFactory factory)
+        {
+            var transport = WebSocketClientTransport.Create();
+            await transport.ConnectAsync(serverEndPoint, performSecureConnection).ConfigureAwait(false);
+            return _.Create(NestSettings.Create(serializer, transport), factory);
+        }
+
+        public static async ValueTask<Nest> ConnectAsync(
+            this NestFactory _, Uri serverEndPoint, ISerializer serializer, IPeerProxyFactory factory)
+        {
+            var transport = WebSocketClientTransport.Create();
+            await transport.ConnectAsync(serverEndPoint).ConfigureAwait(false);
+            return _.Create(NestSettings.Create(serializer, transport), factory);
         }
     }
 }
