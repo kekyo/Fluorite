@@ -17,31 +17,45 @@
 //
 ////////////////////////////////////////////////////////////////////////////
 
-using Fluorite.Proxy;
-using System.ComponentModel;
 using System.Runtime.CompilerServices;
-using System.Threading.Tasks;
 
 namespace Fluorite.Internal
 {
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public abstract class DynamicProxyBase : IHost
+    internal abstract class InternalDynamicProxyFactory
     {
-        internal Nest? nest;
-
-        [EditorBrowsable(EditorBrowsableState.Never)]
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        protected DynamicProxyBase()
+        private protected InternalDynamicProxyFactory()
         {
         }
 
-        [EditorBrowsable(EditorBrowsableState.Never)]
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        protected ValueTask<TResult> InvokeAsync<TResult>(string fullName, object[] args) =>
-            this.nest!.InvokeAsync<TResult>(fullName, args);
+        public abstract T CreateInstance<T>(Nest test)
+            where T : class, IHost;
+    }
 
-        [EditorBrowsable(EditorBrowsableState.Never)]
-        public override string ToString() =>
-            $"Fluorite dynamic proxy: {StaticProxyFactory.GetInterfaceNames(this)}";
+    internal sealed class InternalDynamicProxyFactory<TPeer, TProxy> :
+        InternalDynamicProxyFactory
+        where TPeer : class, IHost
+        where TProxy : DynamicProxyBase, new()
+    {
+        public InternalDynamicProxyFactory()
+        {
+        }
+
+        public override T CreateInstance<T>(Nest nest)
+        {
+            var proxy = new TProxy();
+            proxy.nest = nest;
+            return (T)(IHost)proxy;
+        }
+    }
+
+    internal static class InternalDynamicProxyFactory<TPeer>
+        where TPeer : class, IHost
+    {
+        private static readonly InternalDynamicProxyFactory factory =
+            InternalDynamicProxyGenerator.CreateProxyFactory<TPeer>();
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static TPeer CreateInstance(Nest nest) =>
+            factory!.CreateInstance<TPeer>(nest);
     }
 }

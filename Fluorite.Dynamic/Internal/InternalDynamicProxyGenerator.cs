@@ -24,7 +24,7 @@ using System.Reflection.Emit;
 
 namespace Fluorite.Internal
 {
-    public static class DynamicProxyGenerator
+    public static class InternalDynamicProxyGenerator
     {
         private static readonly MethodInfo invokeAsyncMethod =
             typeof(DynamicProxyBase).GetMethod(
@@ -37,19 +37,7 @@ namespace Fluorite.Internal
                 new[] { typeof(Nest) },
                 null)!;
 
-        private struct Proxy
-        {
-            public readonly TypeBuilder Type;
-            public readonly ConstructorBuilder Constructor;
-
-            public Proxy(TypeBuilder type, ConstructorBuilder constructor)
-            {
-                this.Type = type;
-                this.Constructor = constructor;
-            }
-        }
-
-        private static Proxy CreateProxyType(
+        private static TypeBuilder CreateProxyType(
             ModuleBuilder moduleBuilder,
             Type interfaceType,
             string targetName)
@@ -60,16 +48,8 @@ namespace Fluorite.Internal
                 typeof(DynamicProxyBase),
                 new[] { interfaceType });
 
-            var constructorBuilder = typeBuilder.DefineConstructor(
-                MethodAttributes.Public,
-                default,
-                new[] { typeof(Nest) });
-
-            var constructorIlGenerator = constructorBuilder.GetILGenerator();
-            constructorIlGenerator.Emit(OpCodes.Ldarg_0);
-            constructorIlGenerator.Emit(OpCodes.Ldarg_1);
-            constructorIlGenerator.Emit(OpCodes.Call, peerProxyBaseConstructor);
-            constructorIlGenerator.Emit(OpCodes.Ret);
+            typeBuilder.DefineDefaultConstructor(
+                MethodAttributes.Public);
 
             foreach (var method in interfaceType.GetMethods())
             {
@@ -126,33 +106,11 @@ namespace Fluorite.Internal
                 typeBuilder.DefineMethodOverride(methodBuilder, method);
             }
 
-            return new Proxy(typeBuilder, constructorBuilder);
-        }
-
-        private static TypeBuilder CreateFactoryType(
-            ModuleBuilder moduleBuilder,
-            Proxy proxy,
-            string targetName)
-        {
-            var typeBuilder = moduleBuilder.DefineType(
-                targetName + "Factory",
-                TypeAttributes.Sealed | TypeAttributes.Abstract | TypeAttributes.Class);
-
-            var methodBuilder = typeBuilder.DefineMethod(
-                "CreateInstance",
-                MethodAttributes.Public | MethodAttributes.Static,
-                proxy.Type,
-                new[] { typeof(Nest) });
-
-            var ilGenerator = methodBuilder.GetILGenerator();
-            ilGenerator.Emit(OpCodes.Ldarg_0);
-            ilGenerator.Emit(OpCodes.Newobj, proxy.Constructor);
-            ilGenerator.Emit(OpCodes.Ret);
-
             return typeBuilder;
         }
 
-        internal static Func<Nest, TPeer> CreateProxyFactory<TPeer>()
+        internal static InternalDynamicProxyFactory CreateProxyFactory<TPeer>()
+            where TPeer : class, IHost
         {
             var interfaceType = typeof(TPeer);
             var targetName = interfaceType.Name;
@@ -165,22 +123,18 @@ namespace Fluorite.Internal
 #endif
             var moduleBuilder = assemblyBuilder.DefineDynamicModule(exactTargetName);
 
-            var proxy = CreateProxyType(moduleBuilder, interfaceType, targetName);
-            var factoryTypeBuilder = CreateFactoryType(moduleBuilder, proxy, targetName);
+            var proxyTypeBuilder = CreateProxyType(moduleBuilder, interfaceType, targetName);
 
 #if NETFRAMEWORK
-            var proxyType = proxy.Type.CreateType()!;
-            var factoryType = factoryTypeBuilder.CreateType()!;
+            var proxyType = proxyTypeBuilder.CreateType()!;
 #else
-            var proxyType = proxy.Type.CreateTypeInfo()!;
-            var factoryType = factoryTypeBuilder.CreateTypeInfo()!;
+            var proxyType = proxyTypeBuilder.CreateTypeInfo()!;
 #endif
 
-            var factoryMethod = factoryType.GetMethod("CreateInstance")!;
+            var factoryType = typeof(InternalDynamicProxyFactory<,>).MakeGenericType(interfaceType, proxyType);
+            var factory = (InternalDynamicProxyFactory)Activator.CreateInstance(factoryType)!;
 
-            return (Func<Nest, TPeer>)Delegate.CreateDelegate(
-                typeof(Func<Nest, TPeer>),
-                factoryMethod);
+            return factory;
         }
     }
 }

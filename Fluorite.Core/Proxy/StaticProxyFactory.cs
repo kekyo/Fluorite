@@ -21,6 +21,7 @@ using Fluorite.Internal;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 
 namespace Fluorite.Proxy
 {
@@ -33,8 +34,9 @@ namespace Fluorite.Proxy
         {
         }
 
-        public void Register<TPeer>(Func<Nest, TPeer> generator)
+        private void InternalRegister<TPeer, TProxy>()
             where TPeer : class, IHost
+            where TProxy : StaticProxyBase, new()
         {
             var type = typeof(TPeer);
             if (!type.IsInterface())
@@ -44,11 +46,12 @@ namespace Fluorite.Proxy
 
             lock (this.generators)
             {
-                this.generators[type] = generator;
+                this.generators[type] = nest =>
+                    { var proxy = new TProxy(); proxy.nest = nest; return proxy; };
             }
         }
 
-        public void Unregister<TPeer>()
+        private void InternalUnregister<TPeer>()
         {
             var type = typeof(TPeer);
             if (!type.IsInterface())
@@ -85,6 +88,16 @@ namespace Fluorite.Proxy
 
         public static readonly StaticProxyFactory Instance =
             new StaticProxyFactory();
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void Register<TPeer, TProxy>()
+            where TPeer : class, IHost
+            where TProxy : StaticProxyBase, new() =>
+            Instance.InternalRegister<TPeer, TProxy>();
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void Unregister<TPeer>() =>
+            Instance.InternalUnregister<TPeer>();
 
         internal static string GetInterfaceNames(IHost proxy) =>
             string.Join(

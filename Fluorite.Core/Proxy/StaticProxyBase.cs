@@ -17,24 +17,23 @@
 //
 ////////////////////////////////////////////////////////////////////////////
 
-using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 
 namespace Fluorite.Proxy
 {
-    [EditorBrowsable(EditorBrowsableState.Never)]
     public abstract class StaticProxyBase : IHost
     {
-        private readonly Nest nest;
+        internal Nest? nest;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        protected StaticProxyBase(Nest nest) =>
-            this.nest = nest;
+        protected StaticProxyBase()
+        {
+        }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         protected ValueTask<TResult> InvokeAsync<TPeer, TResult>(string methodName, params object[] args) =>
-            this.nest.InvokeAsync<TResult>($"{typeof(TPeer).FullName}.{methodName}", args);
+            this.nest!.InvokeAsync<TResult>($"{typeof(TPeer).FullName}.{methodName}", args);
 
         public override string ToString() =>
             $"Fluorite static proxy: {StaticProxyFactory.GetInterfaceNames(this)}";

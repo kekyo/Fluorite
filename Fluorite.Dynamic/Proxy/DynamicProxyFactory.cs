@@ -18,7 +18,6 @@
 ////////////////////////////////////////////////////////////////////////////
 
 using Fluorite.Internal;
-using System;
 using System.Runtime.CompilerServices;
 
 namespace Fluorite.Proxy
@@ -26,17 +25,6 @@ namespace Fluorite.Proxy
     public sealed class DynamicProxyFactory :
         IPeerProxyFactory
     {
-        private static class InternalFactory<TPeer>
-            where TPeer : class, IHost
-        {
-            private static readonly Func<Nest, TPeer>? factory =
-                DynamicProxyGenerator.CreateProxyFactory<TPeer>();
-
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public static TPeer CreateInstance(Nest nest) =>
-                factory!(nest);
-        }
-
         private DynamicProxyFactory()
         {
         }
@@ -44,7 +32,7 @@ namespace Fluorite.Proxy
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public TPeer CreateInstance<TPeer>(Nest nest)
             where TPeer : class, IHost =>
-            InternalFactory<TPeer>.CreateInstance(nest);
+            InternalDynamicProxyFactory<TPeer>.CreateInstance(nest);
 
         public static readonly DynamicProxyFactory Instance =
             new DynamicProxyFactory();
