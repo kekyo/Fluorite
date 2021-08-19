@@ -20,7 +20,6 @@
 using Fluorite.Internal;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Runtime.CompilerServices;
 
 namespace Fluorite.Proxy
@@ -98,13 +97,5 @@ namespace Fluorite.Proxy
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void Unregister<TPeer>() =>
             Instance.InternalUnregister<TPeer>();
-
-        internal static string GetInterfaceNames(IHost proxy) =>
-            string.Join(
-                ", ",
-                proxy.GetType().
-                GetInterfaces().
-                Where(t => (t != typeof(IHost)) && typeof(IHost).IsAssignableFrom(t)).
-                Select(t => t.FullName));
     }
 }

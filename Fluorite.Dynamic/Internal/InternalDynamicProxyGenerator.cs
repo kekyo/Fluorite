@@ -76,7 +76,7 @@ namespace Fluorite.Internal
 
                 ilGenerator.Emit(OpCodes.Ldarg_0);
 
-                ilGenerator.Emit(OpCodes.Ldstr, $"{interfaceType.FullName}.{method.Name}");
+                ilGenerator.Emit(OpCodes.Ldstr, ProxyUtilities.GetMethodIdentity(interfaceType, method.Name));
 
                 ilGenerator.Emit(OpCodes.Ldc_I4_S, (short)parameterTypes.Length);
                 ilGenerator.Emit(OpCodes.Newarr, typeof(object));

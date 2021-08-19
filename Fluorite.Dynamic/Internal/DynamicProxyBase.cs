@@ -17,7 +17,6 @@
 //
 ////////////////////////////////////////////////////////////////////////////
 
-using Fluorite.Proxy;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
@@ -37,11 +36,11 @@ namespace Fluorite.Internal
 
         [EditorBrowsable(EditorBrowsableState.Never)]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        protected ValueTask<TResult> InvokeAsync<TResult>(string fullName, object[] args) =>
-            this.nest!.InvokeAsync<TResult>(fullName, args);
+        protected ValueTask<TResult> InvokeAsync<TResult>(string methodIdentity, object[] args) =>
+            this.nest!.InvokeAsync<TResult>(methodIdentity, args);
 
         [EditorBrowsable(EditorBrowsableState.Never)]
         public override string ToString() =>
-            $"Fluorite dynamic proxy: {StaticProxyFactory.GetInterfaceNames(this)}";
+            $"Fluorite dynamic proxy: {ProxyUtilities.GetInterfaceNames(this)}";
     }
 }

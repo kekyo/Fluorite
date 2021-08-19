@@ -17,6 +17,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////
 
+using Fluorite.Internal;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 
@@ -33,9 +34,9 @@ namespace Fluorite.Proxy
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         protected ValueTask<TResult> InvokeAsync<TPeer, TResult>(string methodName, params object[] args) =>
-            this.nest!.InvokeAsync<TResult>($"{typeof(TPeer).FullName}.{methodName}", args);
+            this.nest!.InvokeAsync<TResult>(ProxyUtilities.GetMethodIdentity<TPeer>(methodName), args);
 
         public override string ToString() =>
-            $"Fluorite static proxy: {StaticProxyFactory.GetInterfaceNames(this)}";
+            $"Fluorite static proxy: {ProxyUtilities.GetInterfaceNames(this)}";
     }
 }

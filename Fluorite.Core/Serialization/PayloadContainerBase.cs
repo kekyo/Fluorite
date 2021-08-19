@@ -31,29 +31,29 @@ namespace Fluorite.Serialization
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         protected PayloadContainerBase()
         {
-            this.Identity = default!;
-            this.Name = default!;
+            this.SessionIdentity = default!;
+            this.MethodIdentity = default!;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         protected PayloadContainerBase(Guid identity, string name)
         {
-            this.Identity = identity.ToString("N");
-            this.Name = name;
+            this.SessionIdentity = identity.ToString("N");
+            this.MethodIdentity = name;
         }
 
-        public string Identity { get; set; }
+        public string SessionIdentity { get; set; }
 
-        Guid IPayloadContainerView.Identity =>
-            new Guid(this.Identity);
+        Guid IPayloadContainerView.SessionIdentity =>
+            new Guid(this.SessionIdentity);
 
-        public string Name { get; set; }
+        public string MethodIdentity { get; set; }
 
         public abstract int DataCount { get; }
 
         public abstract ValueTask<object?> DeserializeDataAsync(int index, Type type);
 
         public override string ToString() =>
-            $"{this.Identity}: {this.Name}";
+            $"{this.SessionIdentity}: {this.MethodIdentity}";
     }
 }

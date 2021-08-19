@@ -26,7 +26,7 @@ namespace Fluorite.Serialization
     {
         string PayloadContentType { get; }
 
-        ValueTask<ArraySegment<byte>> SerializeAsync(Guid identity, string name, object data);
+        ValueTask<ArraySegment<byte>> SerializeAsync(Guid sessionIdentity, string methodIdentity, object payload);
         ValueTask<IPayloadContainerView> DeserializeAsync(ArraySegment<byte> data);
     }
 }

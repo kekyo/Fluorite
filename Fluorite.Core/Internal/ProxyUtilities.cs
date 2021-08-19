@@ -18,18 +18,29 @@
 ////////////////////////////////////////////////////////////////////////////
 
 using System;
-using System.Threading.Tasks;
+using System.Linq;
 
-namespace Fluorite.Serialization
+namespace Fluorite.Internal
 {
-    public interface IPayloadContainerView
+    internal static class ProxyUtilities
     {
-        Guid SessionIdentity { get; }
+        public static string GetInterfaceNames(IHost proxy) =>
+            string.Join(
+                ", ",
+                proxy.GetType().
+                GetInterfaces().
+                Where(t => (t != typeof(IHost)) && typeof(IHost).IsAssignableFrom(t)).
+                Select(t => t.FullName));
 
-        string MethodIdentity { get; }
+        public static string GetMethodIdentity(Type type, string methodName)
+        {
+            var name = methodName.EndsWith("Async") ?
+                methodName.Substring(0, methodName.Length - 5) :
+                methodName;
+            return $"{type.FullName}.{name}";
+        }
 
-        int DataCount { get; }
-
-        ValueTask<object?> DeserializeDataAsync(int index, Type type);
+        public static string GetMethodIdentity<TPeer>(string methodName) =>
+            GetMethodIdentity(typeof(TPeer), methodName);
     }
 }
