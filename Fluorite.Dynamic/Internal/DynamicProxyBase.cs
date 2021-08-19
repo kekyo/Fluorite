@@ -17,23 +17,27 @@
 //
 ////////////////////////////////////////////////////////////////////////////
 
+using Fluorite.Proxy;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 
-namespace Fluorite.Proxy
+namespace Fluorite.Internal
 {
     [EditorBrowsable(EditorBrowsableState.Never)]
-    public abstract class PeerProxyBase
+    public abstract class DynamicProxyBase : IHost
     {
         private readonly Nest nest;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        protected PeerProxyBase(Nest nest) =>
+        protected DynamicProxyBase(Nest nest) =>
             this.nest = nest;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        protected ValueTask<TResult> InvokeAsync<TResult>(string name, params object[] args) =>
-            this.nest.InvokeAsync<TResult>(name, args);
+        protected ValueTask<TResult> InvokeAsync<TResult>(string fullName, object[] args) =>
+            this.nest.InvokeAsync<TResult>(fullName, args);
+
+        public override string ToString() =>
+            $"Fluorite dynamic proxy: {StaticProxyFactory.GetInterfaceNames(this)}";
     }
 }

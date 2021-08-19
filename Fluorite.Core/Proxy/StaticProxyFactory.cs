@@ -20,6 +20,7 @@
 using Fluorite.Internal;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Fluorite.Proxy
 {
@@ -84,5 +85,13 @@ namespace Fluorite.Proxy
 
         public static readonly StaticProxyFactory Instance =
             new StaticProxyFactory();
+
+        internal static string GetInterfaceNames(IHost proxy) =>
+            string.Join(
+                ", ",
+                proxy.GetType().
+                GetInterfaces().
+                Where(t => (t != typeof(IHost)) && typeof(IHost).IsAssignableFrom(t)).
+                Select(t => t.FullName));
     }
 }

@@ -17,7 +17,6 @@
 //
 ////////////////////////////////////////////////////////////////////////////
 
-using Fluorite.Proxy;
 using System;
 using System.Linq;
 using System.Reflection;
@@ -28,11 +27,11 @@ namespace Fluorite.Internal
     public static class DynamicProxyGenerator
     {
         private static readonly MethodInfo invokeAsyncMethod =
-            typeof(PeerProxyBase).GetMethod(
+            typeof(DynamicProxyBase).GetMethod(
                 "InvokeAsync",
                 BindingFlags.NonPublic | BindingFlags.Instance)!;
         private static readonly ConstructorInfo peerProxyBaseConstructor =
-            typeof(PeerProxyBase).GetConstructor(
+            typeof(DynamicProxyBase).GetConstructor(
                 BindingFlags.NonPublic | BindingFlags.Instance,
                 null,
                 new[] { typeof(Nest) },
@@ -58,7 +57,7 @@ namespace Fluorite.Internal
             var typeBuilder = moduleBuilder.DefineType(
                 targetName,
                 TypeAttributes.Sealed | TypeAttributes.Class,
-                typeof(PeerProxyBase),
+                typeof(DynamicProxyBase),
                 new[] { interfaceType });
 
             var constructorBuilder = typeBuilder.DefineConstructor(
