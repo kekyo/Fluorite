@@ -36,7 +36,7 @@ namespace Fluorite.WebSockets
     {
         private const int BufferElementSize = 16384;
 
-        private readonly List<WebSocket> connections = new();
+        private readonly Dictionary<string, WebSocket> connections = new();
 
         private HttpListener? httpListener;
         private TaskCompletionSource<bool>? shutdown;
@@ -48,7 +48,7 @@ namespace Fluorite.WebSockets
         {
         }
 
-        private async ValueTask PumpAsync(WebSocket webSocket, Task shutdownTask)
+        private async ValueTask PumpAsync(string webSocketKey, WebSocket webSocket, Task shutdownTask)
         {
             Debug.Assert(this.httpListener != null);
             Debug.Assert(this.shutdown != null);
@@ -56,7 +56,7 @@ namespace Fluorite.WebSockets
 
             lock (this.connections)
             {
-                this.connections.Add(webSocket);
+                this.connections[webSocketKey] = webSocket;
             }
 
             try
@@ -110,7 +110,11 @@ namespace Fluorite.WebSockets
             {
                 lock (this.connections)
                 {
-                    this.connections.Remove(webSocket);
+                    if (this.connections.TryGetValue(webSocketKey, out var current) &&
+                        object.ReferenceEquals(current, webSocket))
+                    {
+                        this.connections.Remove(webSocketKey);
+                    }
                 }
 
                 webSocket.Dispose();
@@ -151,7 +155,7 @@ namespace Fluorite.WebSockets
                 var webSocketContext = await acceptWebSocketTask.
                     ConfigureAwait(false);
 
-                await this.PumpAsync(webSocketContext.WebSocket, shutdownTask).
+                await this.PumpAsync(webSocketContext.SecWebSocketKey, webSocketContext.WebSocket, shutdownTask).
                     ConfigureAwait(false);
             }
             catch (Exception ex)
@@ -241,7 +245,7 @@ namespace Fluorite.WebSockets
             Debug.Assert(this.done != null);
 
             this.shutdown!.SetResult(true);
-            
+
             await this.done!.Task.
                 ConfigureAwait(false);
 
@@ -256,7 +260,7 @@ namespace Fluorite.WebSockets
             Task[] completions;
             lock (this.connections)
             {
-                completions = this.connections.
+                completions = this.connections.Values.
                     Select(webSocket => webSocket.SendAsync(data, this.messageType, true, default)).
                     ToArray();
             }
