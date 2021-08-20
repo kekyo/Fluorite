@@ -213,7 +213,8 @@ namespace Fluorite
                 await this.transport!.SendAsync(resultData).
                     ConfigureAwait(false);
             }
-            else
+            // Will ignore sprious (Already abandoned awaiter)
+            else if ((container.MethodIdentity != "Result") && (container.MethodIdentity != "Exception"))
             {
                 var resultData = await this.serializer.SerializeAsync(container.SessionIdentity, "Exception", new[] { "Method not found." }).
                     ConfigureAwait(false);
