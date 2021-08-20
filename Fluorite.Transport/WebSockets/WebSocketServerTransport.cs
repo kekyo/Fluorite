@@ -36,7 +36,7 @@ namespace Fluorite.WebSockets
     {
         private const int BufferElementSize = 16384;
 
-        private readonly Dictionary<string, WebSocket> connections = new();
+        private readonly Dictionary<WebSocket, string> connections = new();
 
         private HttpListener? httpListener;
         private TaskCompletionSource<bool>? shutdown;
@@ -56,7 +56,7 @@ namespace Fluorite.WebSockets
 
             lock (this.connections)
             {
-                this.connections[webSocketKey] = webSocket;
+                this.connections[webSocket] = webSocketKey;
             }
 
             try
@@ -110,10 +110,10 @@ namespace Fluorite.WebSockets
             {
                 lock (this.connections)
                 {
-                    if (this.connections.TryGetValue(webSocketKey, out var current) &&
-                        object.ReferenceEquals(current, webSocket))
+                    if (this.connections.TryGetValue(webSocket, out var current) &&
+                        webSocketKey.Equals(current))
                     {
-                        this.connections.Remove(webSocketKey);
+                        this.connections.Remove(webSocket);
                     }
                 }
 
@@ -260,7 +260,7 @@ namespace Fluorite.WebSockets
             Task[] completions;
             lock (this.connections)
             {
-                completions = this.connections.Values.
+                completions = this.connections.Keys.
                     Select(webSocket => webSocket.SendAsync(data, this.messageType, true, default)).
                     ToArray();
             }
