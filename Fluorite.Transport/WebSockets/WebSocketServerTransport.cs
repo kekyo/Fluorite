@@ -37,6 +37,7 @@ namespace Fluorite.WebSockets
         private const int BufferElementSize = 16384;
 
         private readonly Dictionary<WebSocket, string> connections = new();
+        private readonly AsyncLock sendLocker = new();
 
         private HttpListener? httpListener;
         private TaskCompletionSource<bool>? shutdown;
@@ -255,17 +256,23 @@ namespace Fluorite.WebSockets
             this.done = null;
         }
 
-        public override ValueTask SendAsync(ArraySegment<byte> data)
+        public override async ValueTask SendAsync(ArraySegment<byte> data)
         {
-            Task[] completions;
-            lock (this.connections)
+            using (await this.sendLocker.LockAsync().
+                ConfigureAwait(false))
             {
-                completions = this.connections.Keys.
-                    Select(webSocket => webSocket.SendAsync(data, this.messageType, true, default)).
-                    ToArray();
-            }
+                // TODO: awaiting each websockets.
+                Task[] completions;
+                lock (this.connections)
+                {
+                    completions = this.connections.Keys.
+                        Select(webSocket => webSocket.SendAsync(data, this.messageType, true, default)).
+                        ToArray();
+                }
 
-            return new ValueTask(Task.WhenAll(completions));
+                await Task.WhenAll(completions).
+                    ConfigureAwait(false);
+            }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
