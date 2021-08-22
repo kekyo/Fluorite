@@ -36,8 +36,7 @@ namespace Fluorite.WebSockets
     {
         private const int BufferElementSize = 16384;
 
-        private readonly Dictionary<WebSocket, string> connections = new();
-        private readonly AsyncLock sendLocker = new();
+        private readonly Dictionary<WebSocket, WebSocketController> connections = new();
 
         private HttpListener? httpListener;
         private TaskCompletionSource<bool>? shutdown;
@@ -49,76 +48,33 @@ namespace Fluorite.WebSockets
         {
         }
 
-        private async ValueTask PumpAsync(string webSocketKey, WebSocket webSocket, Task shutdownTask)
+        private async ValueTask PumpAsync(WebSocket webSocket, Task shutdownTask)
         {
             Debug.Assert(this.httpListener != null);
             Debug.Assert(this.shutdown != null);
             Debug.Assert(this.done != null);
 
-            lock (this.connections)
-            {
-                this.connections[webSocket] = webSocketKey;
-            }
-
-            try
-            {
-                var buffer = new ExpandableBuffer(BufferElementSize);
-                var receiveTask = webSocket.ReceiveAsync(buffer, default);
-
-                while (true)
-                {
-                    var awakeTask = await Task.WhenAny(receiveTask, shutdownTask).
-                        ConfigureAwait(false);
-                    if (object.ReferenceEquals(awakeTask, shutdownTask))
-                    {
-                        await shutdownTask.
-                            ConfigureAwait(false);
-                        var _ = receiveTask.ContinueWith(_ => { });    // ignoring sink
-                        break;
-                    }
-                    else
-                    {
-                        var result = await receiveTask.
-                            ConfigureAwait(false);
-                        if (result.MessageType == this.messageType)
-                        {
-                            buffer.Adjust(result.Count);
-                            if (result.EndOfMessage)
-                            {
-                                this.OnReceived(buffer.Extract());
-                                buffer = new ExpandableBuffer(BufferElementSize);
-                            }
-                            else
-                            {
-                                buffer.Next();
-                            }
-                        }
-
-                        if (result.CloseStatus != default)
-                        {
-                            var __ = shutdownTask.ContinueWith(_ => { });    // ignoring sink
-                            break;
-                        }
-
-                        receiveTask = webSocket.ReceiveAsync(buffer, default);
-                    }
-                }
-
-                await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "", default).
-                    ConfigureAwait(false);
-            }
-            finally
+            using (var controller = new WebSocketController(
+                webSocket, this.messageType, BufferElementSize))
             {
                 lock (this.connections)
                 {
-                    if (this.connections.TryGetValue(webSocket, out var current) &&
-                        webSocketKey.Equals(current))
+                    this.connections.Add(webSocket, controller);
+                }
+
+                try
+                {
+                    await controller.RunAsync(this.OnReceived, shutdownTask).
+                        ConfigureAwait(false);
+                }
+                finally
+                {
+                    lock (this.connections)
                     {
                         this.connections.Remove(webSocket);
                     }
+                    webSocket.Dispose();
                 }
-
-                webSocket.Dispose();
             }
         }
 
@@ -156,7 +112,7 @@ namespace Fluorite.WebSockets
                 var webSocketContext = await acceptWebSocketTask.
                     ConfigureAwait(false);
 
-                await this.PumpAsync(webSocketContext.SecWebSocketKey, webSocketContext.WebSocket, shutdownTask).
+                await this.PumpAsync(webSocketContext.WebSocket, shutdownTask).
                     ConfigureAwait(false);
             }
             catch (Exception ex)
@@ -256,23 +212,17 @@ namespace Fluorite.WebSockets
             this.done = null;
         }
 
-        public override async ValueTask SendAsync(ArraySegment<byte> data)
+        public override ValueTask SendAsync(ArraySegment<byte> data)
         {
-            using (await this.sendLocker.LockAsync().
-                ConfigureAwait(false))
+            Task[] completions;
+            lock (this.connections)
             {
-                // TODO: awaiting each websockets.
-                Task[] completions;
-                lock (this.connections)
-                {
-                    completions = this.connections.Keys.
-                        Select(webSocket => webSocket.SendAsync(data, this.messageType, true, default)).
-                        ToArray();
-                }
-
-                await Task.WhenAll(completions).
-                    ConfigureAwait(false);
+                completions = this.connections.Values.
+                    Select(controller => controller.SendAsync(data)).
+                    ToArray();
             }
+
+            return new ValueTask(Task.WhenAll(completions));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

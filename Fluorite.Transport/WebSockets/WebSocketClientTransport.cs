@@ -24,7 +24,6 @@ using System.Diagnostics;
 using System.Net;
 using System.Net.WebSockets;
 using System.Runtime.CompilerServices;
-using System.Threading;
 using System.Threading.Tasks;
 
 namespace Fluorite.WebSockets
@@ -33,10 +32,10 @@ namespace Fluorite.WebSockets
     {
         private const int BufferElementSize = 16384;
 
-        private readonly SemaphoreSlim locker = new(1, 1);
         private TaskCompletionSource<bool>? shutdown;
         private TaskCompletionSource<bool>? done;
         private ClientWebSocket? webSocket;
+        private WebSocketController? controller;
         private WebSocketMessageType messageType;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -55,60 +54,29 @@ namespace Fluorite.WebSockets
             Debug.Assert(this.shutdown != null);
             Debug.Assert(this.done != null);
 
-            try
+            using (this.controller = new WebSocketController(
+                this.webSocket!, this.messageType, BufferElementSize))
             {
-                var buffer = new ExpandableBuffer(BufferElementSize);
-
-                var receiveTask = this.webSocket!.ReceiveAsync(buffer, default);
-                var abortTask = this.shutdown!.Task;
-
-                while (true)
+                try
                 {
-                    var awakeTask = await Task.WhenAny(abortTask, receiveTask).
-                        ConfigureAwait(false);
-                    if (object.ReferenceEquals(awakeTask, abortTask))
-                    {
-                        var _ = receiveTask.ContinueWith(_ => { });    // ignoring sink
-                        break;
-                    }
-
-                    var result = await receiveTask.
+                    var shutdownTask = this.shutdown!.Task;
+                    await this.controller.RunAsync(this.OnReceived, shutdownTask).
                         ConfigureAwait(false);
 
-                    if (result.MessageType == this.messageType)
-                    {
-                        buffer.Adjust(result.Count);
-                        if (result.EndOfMessage)
-                        {
-                            this.OnReceived(buffer.Extract());
-                            buffer = new ExpandableBuffer(BufferElementSize);
-                        }
-                        else
-                        {
-                            buffer.Next();
-                        }
-                    }
-
-                    if (result.CloseStatus != default)
-                    {
-                        var _ = abortTask.ContinueWith(_ => { });    // ignoring sink
-                        break;
-                    }
-
-                    receiveTask = this.webSocket!.ReceiveAsync(buffer, default);
+                    this.OnReceiveFinished();
                 }
-
-                await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "", default).
-                    ConfigureAwait(false);
-
-                this.OnReceiveFinished();
+                catch (Exception ex)
+                {
+                    Debug.WriteLine(ex);
+                    this.OnReceiveError(ex);
+                }
+                finally
+                {
+                    webSocket.Dispose();
+                }
             }
-            catch (Exception ex)
-            {
-                Debug.WriteLine(ex);
-                this.OnReceiveError(ex);
-            }
 
+            this.controller = null;
             this.done!.TrySetResult(true);
         }
 
@@ -165,21 +133,8 @@ namespace Fluorite.WebSockets
             }
         }
 
-        public override async ValueTask SendAsync(ArraySegment<byte> data)
-        {
-            await this.locker.WaitAsync().
-                ConfigureAwait(false);
-            try
-            {
-                await this.webSocket!.SendAsync(
-                    data, this.messageType, true, default).
-                    ConfigureAwait(false);
-            }
-            finally
-            {
-                this.locker.Release();
-            }
-        }
+        public override ValueTask SendAsync(ArraySegment<byte> data) =>
+            new ValueTask(this.controller!.SendAsync(data));
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static WebSocketClientTransport Create() =>

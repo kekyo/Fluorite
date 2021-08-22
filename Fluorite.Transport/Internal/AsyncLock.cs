@@ -33,6 +33,26 @@ namespace Fluorite.Internal
         public AsyncLock() =>
             this.disposer = new(this);
 
+        public IDisposable Lock()
+        {
+            TaskCompletionSource<IDisposable> tcs;
+            lock (this.queue)
+            {
+                if (!this.isRunning)
+                {
+                    Debug.Assert(this.queue.Count == 0);
+
+                    this.isRunning = true;
+                    return this.disposer;
+                }
+
+                tcs = new TaskCompletionSource<IDisposable>();
+                this.queue.Enqueue(tcs);
+            }
+
+            return tcs.Task.Result;
+        }
+
         public ValueTask<IDisposable> LockAsync()
         {
             lock (this.queue)
