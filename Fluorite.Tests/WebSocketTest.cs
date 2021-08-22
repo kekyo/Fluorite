@@ -27,6 +27,10 @@ namespace Fluorite
     [TestFixture]
     public sealed class WebSocketTest
     {
+        // netsh http add urlacl url=http://+:4649/ user=everyone
+        // netsh advfirewall firewall add rule name="Fluorite.Tests HTTP" dir=in action=allow
+        // netsh advfirewall firewall set rule name="Fluorite.Tests HTTP" new program=system profile=private protocol=tcp localport=4649
+
         private const int IterationCount = 10000;
 
         public interface ITestInterface1 : IHost

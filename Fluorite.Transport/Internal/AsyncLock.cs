@@ -19,22 +19,37 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Threading.Tasks;
 
 namespace Fluorite.Internal
 {
     internal sealed class AsyncLock
     {
-        private readonly Queue<TaskCompletionSource<bool>> queue = new();
+        private readonly Disposer disposer;
+        private readonly Queue<TaskCompletionSource<IDisposable>> queue = new();
+        private bool isRunning;
+
+        public AsyncLock() =>
+            this.disposer = new(this);
 
         public ValueTask<IDisposable> LockAsync()
         {
-            var tcs = new TaskCompletionSource<bool>();
             lock (this.queue)
             {
+                if (!this.isRunning)
+                {
+                    Debug.Assert(this.queue.Count == 0);
+
+                    this.isRunning = true;
+                    return new ValueTask<IDisposable>(this.disposer);
+                }
+
+                var tcs = new TaskCompletionSource<IDisposable>();
                 this.queue.Enqueue(tcs);
+
+                return new ValueTask<IDisposable>(tcs.Task);
             }
-            return new ValueTask<IDisposable>(tcs.Task);
         }
 
         private void InternalDispose()
@@ -43,7 +58,14 @@ namespace Fluorite.Internal
             {
                 if (this.queue.Count >= 1)
                 {
-                    this.queue.Dequeue().SetResult(true);
+                    Debug.Assert(this.isRunning);
+
+                    this.queue.Dequeue().SetResult(this.disposer);
+                }
+
+                if (this.queue.Count == 0)
+                {
+                    this.isRunning = false;
                 }
             }
         }

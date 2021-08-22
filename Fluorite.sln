@@ -5,8 +5,6 @@ VisualStudioVersion = 16.0.31424.327
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Fluorite.Core", "Fluorite.Core\Fluorite.Core.csproj", "{56BDD96F-2989-473A-9D5A-B249F26E00FF}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Fluorite.Core.Tests", "Fluorite.Core.Tests\Fluorite.Core.Tests.csproj", "{AF4ACF31-5805-45F1-864F-0AC8393A5484}"
-EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Fluorite.Dynamic", "Fluorite.Dynamic\Fluorite.Dynamic.csproj", "{120FBCA6-01EB-4F6C-BB23-E0D7E4B03F00}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Fluorite", "Fluorite\Fluorite.csproj", "{78D26311-86C1-4503-BBA9-7D8B42E7FEDE}"
@@ -26,6 +24,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		README.md = README.md
 	EndProjectSection
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Fluorite.Tests", "Fluorite.Tests\Fluorite.Tests.csproj", "{474D8935-DE5E-4531-88E6-9775C7021464}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -36,10 +36,6 @@ Global
 		{56BDD96F-2989-473A-9D5A-B249F26E00FF}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{56BDD96F-2989-473A-9D5A-B249F26E00FF}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{56BDD96F-2989-473A-9D5A-B249F26E00FF}.Release|Any CPU.Build.0 = Release|Any CPU
-		{AF4ACF31-5805-45F1-864F-0AC8393A5484}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{AF4ACF31-5805-45F1-864F-0AC8393A5484}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{AF4ACF31-5805-45F1-864F-0AC8393A5484}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{AF4ACF31-5805-45F1-864F-0AC8393A5484}.Release|Any CPU.Build.0 = Release|Any CPU
 		{120FBCA6-01EB-4F6C-BB23-E0D7E4B03F00}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{120FBCA6-01EB-4F6C-BB23-E0D7E4B03F00}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{120FBCA6-01EB-4F6C-BB23-E0D7E4B03F00}.Release|Any CPU.ActiveCfg = Release|Any CPU
@@ -56,6 +52,10 @@ Global
 		{CB72DA10-347E-472F-A941-ACC21F129B93}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{CB72DA10-347E-472F-A941-ACC21F129B93}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{CB72DA10-347E-472F-A941-ACC21F129B93}.Release|Any CPU.Build.0 = Release|Any CPU
+		{474D8935-DE5E-4531-88E6-9775C7021464}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{474D8935-DE5E-4531-88E6-9775C7021464}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{474D8935-DE5E-4531-88E6-9775C7021464}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{474D8935-DE5E-4531-88E6-9775C7021464}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
