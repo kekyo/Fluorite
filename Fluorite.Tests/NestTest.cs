@@ -20,6 +20,7 @@
 using NUnit.Framework;
 using System;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Fluorite
@@ -104,6 +105,14 @@ namespace Fluorite
             {
                 await Task.Delay(arg0).ConfigureAwait(false);
                 return $"42: {arg0} - {arg1} - {arg2}";
+            }
+        }
+
+        public sealed class TestClass5 : ITestInterface1
+        {
+            public ValueTask<string> Test1Async(int arg0, string arg1, DateTime arg2)
+            {
+                return new ValueTask<string>($"5:{Thread.CurrentThread.ManagedThreadId}: {arg0} - {arg1} - {arg2}");
             }
         }
 
@@ -277,6 +286,51 @@ namespace Fluorite
                     Assert.AreEqual($"12: {entry.index} - ABC - {entry.now}", entry.result);
                 }
             }
+        }
+
+        [Test]
+        public void InvokeTrulyParallelBiDirectionalWithSynchContext()
+        {
+            var sc = new ThreadBoundSynchronizationContext();
+            SynchronizationContext.SetSynchronizationContext(sc);
+
+            var tid = Thread.CurrentThread.ManagedThreadId;
+
+            var (server, client) = Utilities.CreateDirectAttachedNestPair();
+            server.Register(new TestClass5());
+            client.Register(new TestClass5());
+
+            async Task ExecuteAsync()
+            {
+                var results = await Task.WhenAll(
+                    Enumerable.Range(0, IterationCount).
+                    Select(index => Task.Run(async () =>
+                    {
+                        var now = DateTime.Now;
+                        var result = ((index % 2) == 0) ?
+                            await client.GetPeer<ITestInterface1>().
+                                Test1Async(index, "ABC", now).
+                                ConfigureAwait(false) :
+                            await server.GetPeer<ITestInterface1>().
+                                Test1Async(index, "ABC", now).
+                                ConfigureAwait(false);
+                        return (index, now, result);
+                    })));
+
+                foreach (var entry in results)
+                {
+                    if ((entry.index % 2) == 0)
+                    {
+                        Assert.AreEqual($"5:{tid}: {entry.index} - ABC - {entry.now}", entry.result);
+                    }
+                    else
+                    {
+                        Assert.AreEqual($"5:{tid}: {entry.index} - ABC - {entry.now}", entry.result);
+                    }
+                }
+            }
+
+            sc.Run(ExecuteAsync());
         }
 
         [Test]

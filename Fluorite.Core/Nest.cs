@@ -25,6 +25,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Fluorite
@@ -34,8 +35,8 @@ namespace Fluorite
         private readonly ISerializer serializer;
         private readonly IPeerProxyFactory factory;
 
-        private readonly Dictionary<string, HostMethod> hostMethods = new();
-        private readonly Dictionary<Guid, Awaiter> awaits = new();
+        private readonly Dictionary<string, MethodStub> stubs = new();
+        private readonly Dictionary<Guid, Awaiter> awaiters = new();
 
         private ITransport? transport;
         private IDisposable? disposer;
@@ -54,9 +55,9 @@ namespace Fluorite
         {
             if (this.disposer != null)
             {
-                lock (this.hostMethods)
+                lock (this.stubs)
                 {
-                    this.hostMethods.Clear();
+                    this.stubs.Clear();
                 }
 
                 this.CancelAwaitings();
@@ -75,20 +76,23 @@ namespace Fluorite
 
         private void CancelAwaitings()
         {
-            lock (this.awaits)
+            lock (this.awaiters)
             {
-                foreach (var entry in this.awaits)
+                foreach (var entry in this.awaiters)
                 {
                     entry.Value.SetCanceled();
                 }
 
-                this.awaits.Clear();
+                this.awaiters.Clear();
             }
         }
 
-        public void Register(IHost host)
+        public void Register(IHost host) =>
+            this.Register(host, SynchronizationContext.Current);
+
+        public void Register(IHost host, SynchronizationContext? synchContext)
         {
-            lock (this.hostMethods)
+            lock (this.stubs)
             {
                 foreach (var type in host.GetType().GetInterfaces().
                     Where(it => typeof(IHost).IsAssignableFrom(it)))
@@ -96,7 +100,7 @@ namespace Fluorite
                     foreach (var method in type.GetMethods())
                     {
                         var identity = ProxyUtilities.GetMethodIdentity(type, method.Name);
-                        this.hostMethods.Add(identity, HostMethod.Create(host, method));
+                        this.stubs.Add(identity, MethodStub.Create(host, method, synchContext));
                     }
                 }
             }
@@ -104,7 +108,7 @@ namespace Fluorite
 
         public void Unregister(IHost host)
         {
-            lock (this.hostMethods)
+            lock (this.stubs)
             {
                 foreach (var type in host.GetType().GetInterfaces().
                     Where(it => typeof(IHost).IsAssignableFrom(it)))
@@ -112,7 +116,7 @@ namespace Fluorite
                     foreach (var method in type.GetMethods())
                     {
                         var name = ProxyUtilities.GetMethodIdentity(type, method.Name);
-                        this.hostMethods.Remove(name);
+                        this.stubs.Remove(name);
                     }
                 }
             }
@@ -133,9 +137,9 @@ namespace Fluorite
                 ConfigureAwait(false);
 
             var awaiter = new Awaiter<TResult>();
-            lock (this.awaits)
+            lock (this.awaiters)
             {
-                this.awaits.Add(sessionIdentity, awaiter);
+                this.awaiters.Add(sessionIdentity, awaiter);
             }
 
             try
@@ -145,9 +149,9 @@ namespace Fluorite
             }
             catch
             {
-                lock (this.awaits)
+                lock (this.awaiters)
                 {
-                    this.awaits.Remove(sessionIdentity);
+                    this.awaiters.Remove(sessionIdentity);
                 }
                 throw;
             }
@@ -156,7 +160,7 @@ namespace Fluorite
                 ConfigureAwait(false);
         }
 
-        private static async ValueTask ProceedAwaiterAsync(
+        private static async ValueTask AcceptAwaiterAsync(
             IPayloadContainerView container, Awaiter awaiter)
         {
             Debug.Assert(container.DataCount == 1);
@@ -184,12 +188,12 @@ namespace Fluorite
             }
         }
 
-        private async ValueTask ProceedInvokingAsync(IPayloadContainerView container)
+        private async ValueTask AcceptInvokingAsync(IPayloadContainerView container)
         {
-            HostMethod? hostMethod = null;
-            lock (this.hostMethods)
+            MethodStub? hostMethod = null;
+            lock (this.stubs)
             {
-                this.hostMethods.TryGetValue(container.MethodIdentity, out hostMethod);
+                this.stubs.TryGetValue(container.MethodIdentity, out hostMethod);
             }
 
             if (hostMethod != null)
@@ -229,22 +233,22 @@ namespace Fluorite
                 ConfigureAwait(false);
 
             Awaiter? awaiter = null;
-            lock (this.awaits)
+            lock (this.awaiters)
             {
-                if (this.awaits.TryGetValue(container.SessionIdentity, out awaiter))
+                if (this.awaiters.TryGetValue(container.SessionIdentity, out awaiter))
                 {
-                    this.awaits.Remove(container.SessionIdentity);
+                    this.awaiters.Remove(container.SessionIdentity);
                 }
             }
 
             if (awaiter != null)
             {
-                await ProceedAwaiterAsync(container, awaiter).
+                await AcceptAwaiterAsync(container, awaiter).
                     ConfigureAwait(false);
             }
             else
             {
-                await this.ProceedInvokingAsync(container).
+                await this.AcceptInvokingAsync(container).
                     ConfigureAwait(false);
             }
         }
