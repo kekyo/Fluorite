@@ -17,12 +17,14 @@
 //
 ////////////////////////////////////////////////////////////////////////////
 
+using Fluorite.Internal;
 using System;
 using System.Collections.Generic;
 using System.Net.WebSockets;
+using System.Threading;
 using System.Threading.Tasks;
 
-namespace Fluorite.Internal
+namespace Fluorite.WebSockets
 {
     internal sealed class WebSocketController : IDisposable
     {
@@ -69,22 +71,20 @@ namespace Fluorite.Internal
                 return sendData.Completion.Task;
             }
 
-            public async Task<SendData> DequeueAsync()
+            public async Task<SendData> DequeueAsync(CancellationToken token)
             {
                 while (true)
                 {
-                    await this.available.WaitAsync().
+                    await this.available.WaitAsync(token).
                         ConfigureAwait(false);
 
                     lock (this.queue)
                     {
-                        if (this.queue.Count == 0)
+                        if (this.queue.Count >= 1)
                         {
-                            this.available.Reset();
-                            continue;
+                            return this.queue.Dequeue();
                         }
-
-                        return this.queue.Dequeue();
+                        this.available.Reset();
                     }
                 }
             }
@@ -113,69 +113,86 @@ namespace Fluorite.Internal
 
         public async Task RunAsync(Action<ArraySegment<byte>> action, Task shutdownTask)
         {
+            var cts = new CancellationTokenSource();
             var buffer = new ExpandableBuffer(this.bufferElementSize);
-            var receiveTask = webSocket.ReceiveAsync(buffer, default);
-            var sendTask = sendQueue.DequeueAsync();
 
-            while (true)
+            var receiveTask = this.webSocket.ReceiveAsync(buffer, cts.Token);
+            var sendTask = sendQueue.DequeueAsync(cts.Token);
+
+            try
             {
-                var awakeTask = await Task.WhenAny(shutdownTask, receiveTask, sendTask).
-                    ConfigureAwait(false);
-                if (object.ReferenceEquals(awakeTask, shutdownTask))
+                while (true)
                 {
-                    await shutdownTask.
+                    var awakeTask = await Task.WhenAny(shutdownTask, receiveTask, sendTask).
                         ConfigureAwait(false);
-                    var _ = receiveTask.ContinueWith(_ => { });    // ignoring sink
-                    var __ = sendTask.ContinueWith(_ => { });      // ignoring sink
-                    break;
-                }
-                else if (object.ReferenceEquals(awakeTask, sendTask))
-                {
-                    var sendData = await sendTask.
-                        ConfigureAwait(false);
-                    try
+                    if (object.ReferenceEquals(awakeTask, shutdownTask))
                     {
-                        await webSocket.SendAsync(sendData.Data, this.messageType, true, default).
+                        await shutdownTask.   // Make completion
                             ConfigureAwait(false);
-                        sendData.Completion.TrySetResult(true);
-                    }
-                    catch (Exception ex)
-                    {
-                        sendData.Completion.TrySetException(ex);
-                    }
-
-                    sendTask = sendQueue.DequeueAsync();
-                }
-                else
-                {
-                    var result = await receiveTask.
-                        ConfigureAwait(false);
-                    if (result.MessageType == this.messageType)
-                    {
-                        buffer.Adjust(result.Count);
-                        if (result.EndOfMessage)
-                        {
-                            action(buffer.Extract());
-                            buffer = new ExpandableBuffer(this.bufferElementSize);
-                        }
-                        else
-                        {
-                            buffer.Next();
-                        }
-                    }
-
-                    if (result.CloseStatus != default)
-                    {
-                        var __ = shutdownTask.ContinueWith(_ => { });    // ignoring sink
+                        var _ = receiveTask.ContinueWith(_ => { });    // ignoring sink
+                        var __ = sendTask.ContinueWith(_ => { });      // ignoring sink
                         break;
                     }
+                    else if (object.ReferenceEquals(awakeTask, sendTask))
+                    {
+                        var sendData = await sendTask.
+                            ConfigureAwait(false);
+                        try
+                        {
+                            await this.webSocket.SendAsync(sendData.Data, this.messageType, true, default).
+                                ConfigureAwait(false);
+                            sendData.Completion.TrySetResult(true);
+                        }
+                        catch (Exception ex)
+                        {
+                            sendData.Completion.TrySetException(ex);
+                        }
 
-                    receiveTask = webSocket.ReceiveAsync(buffer, default);
+                        sendTask = sendQueue.DequeueAsync(cts.Token);
+                    }
+                    else
+                    {
+                        var result = await receiveTask.
+                            ConfigureAwait(false);
+                        if (result.MessageType == this.messageType)
+                        {
+                            buffer.Adjust(result.Count);
+                            if (result.EndOfMessage)
+                            {
+                                action(buffer.Extract());
+                                buffer = new ExpandableBuffer(this.bufferElementSize);
+                            }
+                            else
+                            {
+                                buffer.Next();
+                            }
+                        }
+
+                        if (result.CloseStatus != default)
+                        {
+                            var _ = sendTask.ContinueWith(_ => { });        // ignoring sink
+                            var __ = shutdownTask.ContinueWith(_ => { });   // ignoring sink
+                            break;
+                        }
+
+                        receiveTask = this.webSocket.ReceiveAsync(buffer, cts.Token);
+                    }
                 }
             }
+            finally
+            {
+                cts.Cancel();
+            }
 
-            await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "", default).
-                ConfigureAwait(false);
+            try
+            {
+                await this.webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "", default).
+                    ConfigureAwait(false);
+            }
+            catch
+            {
+                // Ignore.
+            }
         }
     }
 }

@@ -214,15 +214,22 @@ namespace Fluorite.WebSockets
 
         public override ValueTask SendAsync(ArraySegment<byte> data)
         {
-            Task[] completions;
-            lock (this.connections)
+            if (this.httpListener is { })
             {
-                completions = this.connections.Values.
-                    Select(controller => controller.SendAsync(data)).
-                    ToArray();
-            }
+                Task[] completions;
+                lock (this.connections)
+                {
+                    completions = this.connections.Values.
+                        Select(controller => controller.SendAsync(data)).
+                        ToArray();
+                }
 
-            return new ValueTask(Task.WhenAll(completions));
+                return new ValueTask(Task.WhenAll(completions));
+            }
+            else
+            {
+                throw new ObjectDisposedException("WebSocketServerTransport already shutdowned.");
+            }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

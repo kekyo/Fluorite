@@ -54,30 +54,35 @@ namespace Fluorite.WebSockets
             Debug.Assert(this.shutdown != null);
             Debug.Assert(this.done != null);
 
-            using (this.controller = new WebSocketController(
-                this.webSocket!, this.messageType, BufferElementSize))
+            try
             {
-                try
+                using (this.controller = new WebSocketController(
+                    this.webSocket!, this.messageType, BufferElementSize))
                 {
-                    var shutdownTask = this.shutdown!.Task;
-                    await this.controller.RunAsync(this.OnReceived, shutdownTask).
-                        ConfigureAwait(false);
+                    try
+                    {
+                        var shutdownTask = this.shutdown!.Task;
+                        await this.controller.RunAsync(this.OnReceived, shutdownTask).
+                            ConfigureAwait(false);
 
-                    this.OnReceiveFinished();
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine(ex);
-                    this.OnReceiveError(ex);
-                }
-                finally
-                {
-                    webSocket.Dispose();
+                        this.OnReceiveFinished();
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine(ex);
+                        this.OnReceiveError(ex);
+                    }
+                    finally
+                    {
+                        this.webSocket!.Dispose();
+                    }
                 }
             }
-
-            this.controller = null;
-            this.done!.TrySetResult(true);
+            finally
+            {
+                this.controller = null;
+                this.done!.TrySetResult(true);
+            }
         }
 
         private static Uri CreateUrl(EndPoint serverEndPoint, bool performSecureConnection) =>
@@ -133,8 +138,17 @@ namespace Fluorite.WebSockets
             }
         }
 
-        public override ValueTask SendAsync(ArraySegment<byte> data) =>
-            new ValueTask(this.controller!.SendAsync(data));
+        public override ValueTask SendAsync(ArraySegment<byte> data)
+        {
+            if (this.controller is { } controller)
+            {
+                return new ValueTask(this.controller!.SendAsync(data));
+            }
+            else
+            {
+                throw new ObjectDisposedException("WebSocketClientTransport already shutdowned.");
+            }
+        }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static WebSocketClientTransport Create() =>

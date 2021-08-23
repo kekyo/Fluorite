@@ -17,19 +17,39 @@
 //
 ////////////////////////////////////////////////////////////////////////////
 
+using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Fluorite.Internal
 {
     internal sealed class AsyncManualResetEvent
     {
-        private readonly List<TaskCompletionSource<bool>> awaitings = new();
+        private sealed class Awaiting : IDisposable
+        {
+            public readonly TaskCompletionSource<bool> tcs = new();
+            private readonly CancellationTokenRegistration registration;
+
+            public Awaiting(CancellationToken token) =>
+                this.registration = token.Register(() => this.tcs.TrySetCanceled());
+
+            public void Dispose() =>
+                this.registration.Dispose();
+
+            public Task Task =>
+                this.tcs.Task;
+
+            public void MarkCompleted() =>
+                this.tcs.TrySetResult(true);
+        }
+
+        private readonly List<Awaiting> awaitings = new();
         private volatile bool signaled;
 
         public void Set()
         {
-            TaskCompletionSource<bool>[] awaitings;
+            Awaiting[] awaitings;
             lock (this.awaitings)
             {
                 this.signaled = true;
@@ -40,26 +60,29 @@ namespace Fluorite.Internal
 
             foreach (var awaiting in awaitings)
             {
-                awaiting.TrySetResult(true);
+                awaiting.MarkCompleted();
             }
         }
 
         public void Reset() =>
             this.signaled = false;
 
-        public ValueTask WaitAsync()
+        public ValueTask WaitAsync(CancellationToken token)
         {
             lock (this.awaitings)
             {
+                token.ThrowIfCancellationRequested();
+
                 if (this.signaled)
                 {
                     return default;
                 }
 
-                var tcs = new TaskCompletionSource<bool>();
-                this.awaitings.Add(tcs);
+                var awaiting = new Awaiting(token);
+                this.awaitings.Add(awaiting);
 
-                return new ValueTask(tcs.Task);
+
+                return new ValueTask(awaiting.Task);
             }
         }
     }
