@@ -15,9 +15,9 @@
 
 |Package|main|Description|
 |:--|:--|:--|
-|Fluorite.Core|[![NuGet Fluorite.Core](https://img.shields.io/nuget/v/Fluorite.Core.svg?style=flat)](https://www.nuget.org/packages/Fluorite.Core)|Core engine|
-|Fluorite.Serializer|[![NuGet Fluorite.Serializer](https://img.shields.io/nuget/v/Fluorite.Serializer.svg?style=flat)](https://www.nuget.org/packages/Fluorite.Serializer)|Default serializer implementation (Json)|
-|Fluorite.Transport|[![NuGet Fluorite.Transport](https://img.shields.io/nuget/v/Fluorite.Transport.svg?style=flat)](https://www.nuget.org/packages/Fluorite.Transport)|Default transport implementation (WebSocket)|
+|Fluorite.Core|[![NuGet Fluorite.Core](https://img.shields.io/nuget/v/Fluorite.Core.svg?style=flat)](https://www.nuget.org/packages/Fluorite.Core)|Independed core engine|
+|Fluorite.Serializer|[![NuGet Fluorite.Serializer](https://img.shields.io/nuget/v/Fluorite.Serializer.svg?style=flat)](https://www.nuget.org/packages/Fluorite.Serializer)|Default serializer implementation (Newtonsoft.Json)|
+|Fluorite.Transport|[![NuGet Fluorite.Transport](https://img.shields.io/nuget/v/Fluorite.Transport.svg?style=flat)](https://www.nuget.org/packages/Fluorite.Transport)|Default transport implementation (System.Net.WebSockets)|
 
 -----
 
