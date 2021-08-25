@@ -18,6 +18,7 @@
 ////////////////////////////////////////////////////////////////////////////
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 
@@ -40,11 +41,19 @@ namespace Fluorite
         private readonly DefaultAssemblyResolver assemblyResolver = new();
 
         private readonly TypeSystem typeSystem;
-
+        private readonly TypeDefinition attributeTargetsType;
+        private readonly MethodDefinition attributeUsageAttributeConstructor;
+        
         private readonly TypeDefinition iHostType;
+
         private readonly TypeDefinition generatedProxyBaseType;
         private readonly MethodDefinition generatedProxyBaseConstructor;
         private readonly MethodDefinition invokeAsyncMethodT;
+
+        private readonly TypeDefinition generatedProxyAttributeBaseType;
+        private readonly MethodDefinition generatedProxyAttributeBaseConstructor;
+      
+        private readonly MethodDefinition registerMethodT;
 
         public StaticProxyGenerator(string[] referencesBasePath, Action<LogLevels, string> message)
         {
@@ -72,7 +81,7 @@ namespace Fluorite
                 $"Fluorite.Core.dll is loaded: Path={fluoriteCorePath}");
 
             this.typeSystem = fluoriteCoreAssembly.MainModule.TypeSystem;
-
+            
             this.iHostType = fluoriteCoreAssembly.MainModule.GetType(
                 "Fluorite.IHost")!;
 
@@ -83,6 +92,28 @@ namespace Fluorite
                 First(m => m.IsConstructor);
             this.invokeAsyncMethodT = this.generatedProxyBaseType.Methods.
                 First(m => m.Name.StartsWith("InvokeAsync"));
+            
+            this.generatedProxyAttributeBaseType = fluoriteCoreAssembly.MainModule.GetType(
+                "Fluorite.Internal.GeneratedProxyAttributeBase")!;
+            this.generatedProxyAttributeBaseConstructor = this.generatedProxyAttributeBaseType.Methods.
+                First(m => m.IsConstructor);
+            
+            var staticProxyFactoryType = fluoriteCoreAssembly.MainModule.GetType(
+                "Fluorite.Proxy.StaticProxyFactory")!;
+            this.registerMethodT = staticProxyFactoryType.Methods.
+                First(m => m.Name.StartsWith("Register"));
+            
+            // HACK: made safer extract AttributeUsageAttribute type reference.
+            var attributeUsageAttribute =
+                this.generatedProxyAttributeBaseType.CustomAttributes.First(ca =>
+                    ca.AttributeType.FullName == "System.AttributeUsageAttribute");
+            var attributeUsageAttributeType = attributeUsageAttribute.
+                AttributeType.Resolve();
+            this.attributeUsageAttributeConstructor = attributeUsageAttributeType.Methods.
+                First(m => m.IsConstructor);
+
+            this.attributeTargetsType = attributeUsageAttribute.ConstructorArguments[0].
+                Type.Resolve();
         }
 
         private static string GetMethodIdentity(TypeReference type, string methodName)
@@ -93,7 +124,19 @@ namespace Fluorite
             return $"{type.FullName.Replace('+', '.').Replace('/', '.')}.{name}";
         }
 
-        private bool InjectIntoType(ModuleDefinition module, TypeDefinition targetType)
+        private readonly struct InjectedProxy
+        {
+            public readonly TypeDefinition TargetType;
+            public readonly TypeDefinition ProxyType;
+
+            public InjectedProxy(TypeDefinition targetType, TypeDefinition proxyType)
+            {
+                this.TargetType = targetType;
+                this.ProxyType = proxyType;
+            }
+        }
+
+        private InjectedProxy InjectProxyType(ModuleDefinition module, TypeDefinition targetType)
         {
             var nss = targetType.FullName.Replace('+', '_').Replace('/', '_').Split('.');
             var ns = string.Join(".", nss.Take(nss.Length - 1));
@@ -111,7 +154,7 @@ namespace Fluorite
             var dc = new MethodDefinition(
                 ".ctor",
                 MethodAttributes.Public | MethodAttributes.HideBySig | MethodAttributes.SpecialName | MethodAttributes.RTSpecialName,
-                module.ImportReference(this.generatedProxyBaseConstructor.ReturnType));
+                module.ImportReference(this.typeSystem.Void));
             var dcilp = dc.Body.GetILProcessor();
             dcilp.Append(Instruction.Create(OpCodes.Ldarg_0));
             dcilp.Append(Instruction.Create(OpCodes.Call,
@@ -124,10 +167,8 @@ namespace Fluorite
                 var returnType = method.ReturnType;
                 if (!returnType.FullName.StartsWith("System.Threading.Tasks.ValueTask"))
                 {
-                    this.message(
-                        LogLevels.Error,
+                    throw new ArgumentException(
                         $"Method doesn't have a ValueTask<T> return type: Target={targetType.FullName}.{method.Name}");
-                    return false;
                 }
 
                 var valueTaskElementType = ((GenericInstanceType)returnType).
@@ -135,10 +176,8 @@ namespace Fluorite
                 // TODO: support non generic ValueTask
                 if (valueTaskElementType == null)
                 {
-                    this.message(
-                        LogLevels.Error,
+                    throw new ArgumentException(
                         $"Method doesn't have a ValueTask<T> return type: Target={targetType.FullName}.{method.Name}");
-                    return false;
                 }
 
                 var proxyParameterTypes = method.Parameters.
@@ -185,14 +224,73 @@ namespace Fluorite
 
                 ilProcessor.Append(Instruction.Create(OpCodes.Ret));
 
-                //proxyMethod.Overrides.Add(method);
-
                 proxyType.Methods.Add(proxyMethod);
             }
 
             module.Types.Add(proxyType);
 
-            return true;
+            return new InjectedProxy(targetType, proxyType);
+        }
+
+        private TypeDefinition InjectGeneratedProxyAttributeType(ModuleDefinition module, IReadOnlyList<InjectedProxy> injects)
+        {
+            var attributeType = new TypeDefinition(
+                "Fluorite.Internal",
+                "GeneratedProxyAttribute",
+                TypeAttributes.Sealed | TypeAttributes.Class,
+                module.ImportReference(this.generatedProxyAttributeBaseType));
+
+            var attributeUsageAttribute = new CustomAttribute(
+                module.ImportReference(this.attributeUsageAttributeConstructor));
+            attributeUsageAttribute.ConstructorArguments.Add(
+                new CustomAttributeArgument(
+                    module.ImportReference(this.attributeTargetsType),
+                    (int)AttributeTargets.Assembly));
+            attributeType.CustomAttributes.Add(attributeUsageAttribute);
+
+            var dc = new MethodDefinition(
+                ".ctor",
+                MethodAttributes.Public | MethodAttributes.HideBySig | MethodAttributes.SpecialName | MethodAttributes.RTSpecialName,
+                module.ImportReference(this.typeSystem.Void));
+            var dcilp = dc.Body.GetILProcessor();
+            dcilp.Append(Instruction.Create(OpCodes.Ldarg_0));
+            dcilp.Append(Instruction.Create(OpCodes.Call,
+                module.ImportReference(this.generatedProxyAttributeBaseConstructor)));
+            dcilp.Append(Instruction.Create(OpCodes.Ret));
+            attributeType.Methods.Add(dc);
+
+            var initializeMethod = new MethodDefinition(
+                "Initialize",
+                MethodAttributes.Public | MethodAttributes.Virtual,
+                module.ImportReference(this.typeSystem.Void));
+            
+            var ilProcessor = initializeMethod.Body.GetILProcessor();
+
+            foreach (var injected in injects)
+            {
+                var registerMethod = new GenericInstanceMethod(
+                    module.ImportReference(this.registerMethodT));
+                registerMethod.GenericArguments.Add(
+                    module.ImportReference(injected.TargetType));
+                registerMethod.GenericArguments.Add(
+                    module.ImportReference(injected.ProxyType));
+                ilProcessor.Append(Instruction.Create(OpCodes.Call, registerMethod));
+            }
+            
+            ilProcessor.Append(Instruction.Create(OpCodes.Ret));
+
+            attributeType.Methods.Add(initializeMethod);
+ 
+            module.Types.Add(attributeType);
+
+            return attributeType;
+        }
+
+        private void InjectGeneratedProxyAttribute(AssemblyDefinition targetAssembly, TypeDefinition attributeType)
+        {
+            var generatedProxyAttribute = new CustomAttribute(
+                targetAssembly.MainModule.ImportReference(attributeType.Methods.First(m => m.IsConstructor)));
+            targetAssembly.CustomAttributes.Add(generatedProxyAttribute);
         }
 
         public bool Inject(string targetAssemblyPath, string? injectedAssemblyPath = null)
@@ -219,55 +317,51 @@ namespace Fluorite
 
                 if (targetTypes.Length >= 1)
                 {
-                    var injected = false;
-
+                    var injects = new List<InjectedProxy>();
+                    
                     foreach (var targetType in targetTypes)
                     {
-                        if (this.InjectIntoType(targetAssembly.MainModule, targetType))
-                        {
-                            injected = true;
-                            this.message(
-                                LogLevels.Trace,
-                                $"Injected a static proxy: Assembly={targetAssemblyName}, Target={targetType.FullName}");
-                        }
-                        else
-                        {
-                            this.message(
-                                LogLevels.Trace,
-                                $"Ignored a type: Assembly={targetAssemblyName}, Target={targetType.FullName}");
-                        }
+                        var injected = this.InjectProxyType(targetAssembly.MainModule, targetType);
+                        injects.Add(injected);
+                        
+                        this.message(
+                            LogLevels.Trace,
+                            $"Injected a static proxy: Assembly={targetAssemblyName}, Target={targetType.FullName}");
                     }
 
-                    if (injected)
-                    {
-                        injectedAssemblyPath = injectedAssemblyPath ?? targetAssemblyPath;
-                        var tempPath = injectedAssemblyPath + ".tmp";
+                    var attributeType = this.InjectGeneratedProxyAttributeType(targetAssembly.MainModule, injects);
+                    this.InjectGeneratedProxyAttribute(targetAssembly, attributeType);
 
+                    injectedAssemblyPath ??= targetAssemblyPath;
+                    var tempPath = injectedAssemblyPath + ".tmp";
+                    
+                    // TODO: pdb path
+
+                    try
+                    {
+                        targetAssembly.Write(
+                            tempPath,
+                            new WriterParameters
+                            {
+                                WriteSymbols = true,
+                                DeterministicMvid = true,
+                            });
+                        File.Delete(injectedAssemblyPath);
+                        File.Move(tempPath, injectedAssemblyPath);
+                    }
+                    catch
+                    {
                         try
                         {
-                            targetAssembly.Write(
-                                tempPath,
-                                new WriterParameters
-                                {
-                                    WriteSymbols = true,
-                                    DeterministicMvid = true,
-                                });
-                            File.Delete(injectedAssemblyPath);
-                            File.Move(tempPath, injectedAssemblyPath);
+                            File.Delete(tempPath);
                         }
                         catch
                         {
-                            try
-                            {
-                                File.Delete(tempPath);
-                            }
-                            catch
-                            {
-                            }
-                            throw;
                         }
-                        return true;
+                        throw;
                     }
+                    
+                    return true;
                 }
             }
 

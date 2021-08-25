@@ -2,7 +2,7 @@
   "profiles": {
     "Fluorite.Build": {
       "commandName": "Project",
-      "commandLineArgs": "..\\..\\..\\..\\Fluorite.Tests\\bin\\debug\\net45 ..\\..\\..\\..\\Fluorite.Tests\\bin\\debug\\net45\\Fluorite.Tests.dll"
+      "commandLineArgs": "../../../../Fluorite.Tests/bin/Debug/net45 ../../../../Fluorite.Tests/bin/Debug/net45/Fluorite.Tests.dll"
     }
   }
 }
