@@ -13,7 +13,7 @@
 |Fluorite|[![NuGet Fluorite](https://img.shields.io/nuget/v/Fluorite.svg?style=flat)](https://www.nuget.org/packages/Fluorite)|Meta-package of provides statically proxy|
 |Fluorite.Dynamic|[![NuGet Fluorite.Dynamic](https://img.shields.io/nuget/v/Fluorite.Dynamic.svg?style=flat)](https://www.nuget.org/packages/Fluorite.Dynamic)|Meta-package of provides auto-mated dynamically proxy|
 
-|Package|main|devel|Description|
+|Package|main|Description|
 |:--|:--|:--|
 |Fluorite.Core|[![NuGet Fluorite.Core](https://img.shields.io/nuget/v/Fluorite.Core.svg?style=flat)](https://www.nuget.org/packages/Fluorite.Core)|Independed core engine|
 |Fluorite.Serializer|[![NuGet Fluorite.Serializer](https://img.shields.io/nuget/v/Fluorite.Serializer.svg?style=flat)](https://www.nuget.org/packages/Fluorite.Serializer)|Default serializer implementation (Newtonsoft.Json)|
