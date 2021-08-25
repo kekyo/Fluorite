@@ -17,6 +17,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////
 
+using Fluorite.Proxy;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
@@ -24,10 +25,8 @@ using System.Threading.Tasks;
 namespace Fluorite.Internal
 {
     [EditorBrowsable(EditorBrowsableState.Never)]
-    public abstract class DynamicProxyBase : IHost
+    public abstract class DynamicProxyBase : ProxyBase
     {
-        internal Nest? nest;
-
         [EditorBrowsable(EditorBrowsableState.Never)]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         protected DynamicProxyBase()

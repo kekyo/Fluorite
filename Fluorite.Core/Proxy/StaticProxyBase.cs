@@ -23,10 +23,8 @@ using System.Threading.Tasks;
 
 namespace Fluorite.Proxy
 {
-    public abstract class StaticProxyBase : IHost
+    public abstract class StaticProxyBase : ProxyBase
     {
-        internal Nest? nest;
-
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         protected StaticProxyBase()
         {

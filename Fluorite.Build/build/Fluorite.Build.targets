@@ -21,8 +21,8 @@
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
     
   <PropertyGroup>
-    <EpoxyBuildEnable Condition="'$(EpoxyBuildEnable)' == ''">True</EpoxyBuildEnable>
-    <EpoxyBuildTrace Condition="'$(EpoxyBuildTrace)' == ''">False</EpoxyBuildTrace>
+    <FluoriteBuildEnable Condition="'$(FluoriteBuildEnable)' == ''">True</FluoriteBuildEnable>
+    <FluoriteBuildTrace Condition="'$(FluoriteBuildTrace)' == ''">False</FluoriteBuildTrace>
   </PropertyGroup>
 
   <UsingTask
@@ -50,30 +50,30 @@
     </Task>
   </UsingTask>
     
-  <Target Name="EpoxyBuild" AfterTargets="AfterCompile"
-    Condition="'$(EpoxyBuildEnable)' == 'True'">
+  <Target Name="FluoriteBuild" AfterTargets="AfterCompile"
+    Condition="'$(FluoriteBuildEnable)' == 'True'">
       
     <PropertyGroup Condition="'$(MSBuildRuntimeType)' == 'Core'">
-      <_EB_PlatformName Condition="('$(MicrosoftNETBuildTasksTFM)' == '') AND ('$(BundledNETCoreAppTargetFrameworkVersion)' == '')">netcoreapp2.0</_EB_PlatformName>
-      <_EB_PlatformName Condition="'$(MicrosoftNETBuildTasksTFM)' == ''">netcoreapp$(BundledNETCoreAppTargetFrameworkVersion)</_EB_PlatformName>
-      <_EB_PlatformName Condition="'$(MicrosoftNETBuildTasksTFM)' != ''">$(MicrosoftNETBuildTasksTFM)</_EB_PlatformName>
+      <_FB_PlatformName Condition="('$(MicrosoftNETBuildTasksTFM)' == '') AND ('$(BundledNETCoreAppTargetFrameworkVersion)' == '')">netcoreapp2.0</_FB_PlatformName>
+      <_FB_PlatformName Condition="'$(MicrosoftNETBuildTasksTFM)' == ''">netcoreapp$(BundledNETCoreAppTargetFrameworkVersion)</_FB_PlatformName>
+      <_FB_PlatformName Condition="'$(MicrosoftNETBuildTasksTFM)' != ''">$(MicrosoftNETBuildTasksTFM)</_FB_PlatformName>
     </PropertyGroup>
     <PropertyGroup Condition="'$(MSBuildRuntimeType)' != 'Core'">
-      <_EB_PlatformName>net461</_EB_PlatformName>
+      <_FB_PlatformName>net461</_FB_PlatformName>
     </PropertyGroup>
 
     <PropertyGroup>
-      <EpoxyBuildToolingRuntimeName Condition="'$(EpoxyBuildToolingRuntimeName)' == ''">$(_EB_RuntimeName)</EpoxyBuildToolingRuntimeName>
-      <_EB_ToolingDir>$([System.IO.Path]::Combine('$(MSBuildThisFileDirectory)','..','tools','$(_EB_PlatformName)'))</_EB_ToolingDir>
-      <EpoxyBuildToolingDir Condition="'$(EpoxyBuildToolingDir)' == ''">$([System.IO.Path]::GetFullPath('$(_EB_ToolingDir)'))</EpoxyBuildToolingDir>
-      <EpoxyBuildToolingPath Condition="'$(EpoxyBuildToolingPath)' == ''">$([System.IO.Path]::Combine('$(EpoxyBuildToolingDir)','$(_EB_ExecutableName)'))</EpoxyBuildToolingPath>
+      <FluoriteBuildToolingRuntimeName Condition="'$(FluoriteBuildToolingRuntimeName)' == ''">$(_FB_RuntimeName)</FluoriteBuildToolingRuntimeName>
+      <_FB_ToolingDir>$([System.IO.Path]::Combine('$(MSBuildThisFileDirectory)','..','tools','$(_FB_PlatformName)'))</_FB_ToolingDir>
+      <FluoriteBuildToolingDir Condition="'$(FluoriteBuildToolingDir)' == ''">$([System.IO.Path]::GetFullPath('$(_FB_ToolingDir)'))</FluoriteBuildToolingDir>
+      <FluoriteBuildToolingPath Condition="'$(FluoriteBuildToolingPath)' == ''">$([System.IO.Path]::Combine('$(FluoriteBuildToolingDir)','$(_FB_ExecutableName)'))</FluoriteBuildToolingPath>
     </PropertyGroup>
 
     <GetCombinedReferencesBasePath References="@(ReferencePath)">
       <Output TaskParameter="CombinedReferencesBasePath" PropertyName="CombinedReferencesBasePath" />
     </GetCombinedReferencesBasePath>
         
-    <Exec WorkingDirectory="$(EpoxyBuildToolingDir)"
-        Command="$(EpoxyBuildToolingRuntimeName)&quot;$(EpoxyBuildToolingPath)&quot; &quot;$(CombinedReferencesBasePath)&quot; &quot;$(ProjectDir)$(IntermediateOutputPath)$(TargetFileName)&quot; $(EpoxyBuildTrace)" />
+    <Exec WorkingDirectory="$(FluoriteBuildToolingDir)"
+        Command="$(FluoriteBuildToolingRuntimeName)&quot;$(FluoriteBuildToolingPath)&quot; &quot;$(CombinedReferencesBasePath)&quot; &quot;$(ProjectDir)$(IntermediateOutputPath)$(TargetFileName)&quot; $(FluoriteBuildTrace)" />
   </Target>
 </Project>

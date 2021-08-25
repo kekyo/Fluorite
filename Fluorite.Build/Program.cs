@@ -50,18 +50,18 @@ namespace Fluorite
                 var targetAssemblyPath = args[1];
                 isTrace = args.ElementAtOrDefault(2) is { } arg2 && bool.TryParse(arg2, out var v) && v;
 
-                var injector = new StaticProxyGenerator(referencesBasePath, Message);
+                var generator = new StaticProxyGenerator(referencesBasePath, Message);
 
-                if (injector.Inject(targetAssemblyPath))
+                if (generator.Inject(targetAssemblyPath))
                 {
                     Message(
                         LogLevels.Information, 
-                        $"Fluorite.Build: Replaced injected assembly: Assembly={Path.GetFileName(targetAssemblyPath)}");
+                        $"Replaced injected assembly: Assembly={Path.GetFileName(targetAssemblyPath)}");
                 }
                 else
                 {
                     Message(LogLevels.Information,
-                        $"Fluorite.Build: Injection target isn't found: Assembly={Path.GetFileName(targetAssemblyPath)}");
+                        $"Injection target isn't found: Assembly={Path.GetFileName(targetAssemblyPath)}");
                 }
 
                 return 0;

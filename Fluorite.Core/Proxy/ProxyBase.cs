@@ -17,30 +17,17 @@
 //
 ////////////////////////////////////////////////////////////////////////////
 
-using System;
-using System.Linq;
+using System.Runtime.CompilerServices;
 
-namespace Fluorite.Internal
+namespace Fluorite.Proxy
 {
-    internal static class ProxyUtilities
+    public abstract class ProxyBase : IHost
     {
-        public static string GetInterfaceNames(IHost proxy) =>
-            string.Join(
-                ", ",
-                proxy.GetType().
-                GetInterfaces().
-                Where(t => (t != typeof(IHost)) && typeof(IHost).IsAssignableFrom(t)).
-                Select(t => t.FullName));
+        internal Nest? nest;
 
-        public static string GetMethodIdentity(Type type, string methodName)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private protected ProxyBase()
         {
-            var name = methodName.EndsWith("Async") ?
-                methodName.Substring(0, methodName.Length - 5) :
-                methodName;
-            return $"{type.FullName!.Replace('+', '.')}.{name}";
         }
-
-        public static string GetMethodIdentity<TPeer>(string methodName) =>
-            GetMethodIdentity(typeof(TPeer), methodName);
     }
 }

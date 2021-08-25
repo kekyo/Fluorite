@@ -26,7 +26,7 @@ namespace Fluorite.Internal
 {
     public static class InternalDynamicProxyGenerator
     {
-        private static readonly MethodInfo invokeAsyncMethod =
+        private static readonly MethodInfo invokeAsyncMethodT =
             typeof(DynamicProxyBase).GetMethod(
                 "InvokeAsync",
                 BindingFlags.NonPublic | BindingFlags.Instance)!;
@@ -65,30 +65,32 @@ namespace Fluorite.Internal
                         $"Couldn't generate a proxy from non ValueTask returned method: {method.DeclaringType?.FullName ?? "global"}.{method.Name}");
                 }
 
-                var parameterTypes = method.GetParameters().Select(p => p.ParameterType).ToArray();
-                var methodBuilder = typeBuilder.DefineMethod(
+                var proxyParameterTypes = method.GetParameters().
+                    Select(p => p.ParameterType).
+                    ToArray();
+                var proxyMethodBuilder = typeBuilder.DefineMethod(
                     method.Name,
                     MethodAttributes.Public | MethodAttributes.Virtual,
                     method.ReturnType,
-                    parameterTypes);
+                    proxyParameterTypes);
 
-                var ilGenerator = methodBuilder.GetILGenerator();
+                var ilGenerator = proxyMethodBuilder.GetILGenerator();
 
                 ilGenerator.Emit(OpCodes.Ldarg_0);
 
                 ilGenerator.Emit(OpCodes.Ldstr, ProxyUtilities.GetMethodIdentity(interfaceType, method.Name));
 
-                ilGenerator.Emit(OpCodes.Ldc_I4_S, (short)parameterTypes.Length);
+                ilGenerator.Emit(OpCodes.Ldc_I4_S, (sbyte)proxyParameterTypes.Length);
                 ilGenerator.Emit(OpCodes.Newarr, typeof(object));
 
-                for (short index = 0; index < parameterTypes.Length; index++)
+                for (sbyte index = 0; index < proxyParameterTypes.Length; index++)
                 {
-                    var parameterType = parameterTypes[index];
+                    var parameterType = proxyParameterTypes[index];
 
                     ilGenerator.Emit(OpCodes.Dup);
                     ilGenerator.Emit(OpCodes.Ldc_I4_S, index);
                     ilGenerator.Emit(OpCodes.Conv_I);
-                    ilGenerator.Emit(OpCodes.Ldarg_S, (short)(index + 1));  // Skip this ref.
+                    ilGenerator.Emit(OpCodes.Ldarg_S, (sbyte)(index + 1));  // Skip this ref.
                     if (parameterType.IsValueType)
                     {
                         ilGenerator.Emit(OpCodes.Box, parameterType);
@@ -97,13 +99,13 @@ namespace Fluorite.Internal
                 }
 
                 var valueTaskElementType = method.ReturnType.GenericTypeArguments[0];
-                var madeInternalInvokeMethod =
-                    invokeAsyncMethod.MakeGenericMethod(valueTaskElementType);
-                ilGenerator.Emit(OpCodes.Call, madeInternalInvokeMethod);
+                var invokeAsyncMethod =
+                    invokeAsyncMethodT.MakeGenericMethod(valueTaskElementType);
+                ilGenerator.Emit(OpCodes.Call, invokeAsyncMethod);
 
                 ilGenerator.Emit(OpCodes.Ret);
 
-                typeBuilder.DefineMethodOverride(methodBuilder, method);
+                typeBuilder.DefineMethodOverride(proxyMethodBuilder, method);
             }
 
             return typeBuilder;
