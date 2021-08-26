@@ -37,11 +37,25 @@ namespace Fluorite
 
     public sealed class StaticProxyGenerator
     {
+        private static readonly HashSet<string> excludeList = new (StringComparer.InvariantCultureIgnoreCase)
+            {
+                "Fluorite.dll",
+                "Fluorite.Core.dll",
+                "Fluorite.Serializer.dll",
+                "Fluorite.Transport.dll",
+                "Fluorite.Dynamic.dll",
+            };
+
+        private readonly string targetAssemblyPath;
+
         private readonly Action<LogLevels, string> message;
         private readonly DefaultAssemblyResolver assemblyResolver = new();
 
+        private readonly AssemblyDefinition[] referenceAssemblies;
+
         private readonly TypeSystem typeSystem;
         private readonly TypeDefinition attributeTargetsType;
+        private readonly object attributeTargetsRawValue;
         private readonly MethodDefinition attributeUsageAttributeConstructor;
         
         private readonly TypeDefinition iHostType;
@@ -50,13 +64,14 @@ namespace Fluorite
         private readonly MethodDefinition generatedProxyBaseConstructor;
         private readonly MethodDefinition invokeAsyncMethodT;
 
-        private readonly TypeDefinition generatedProxyAttributeBaseType;
-        private readonly MethodDefinition generatedProxyAttributeBaseConstructor;
+        private readonly TypeDefinition generatedProxyAttributeType;
+        private readonly MethodDefinition generatedProxyAttributeConstructor;
       
         private readonly MethodDefinition registerMethodT;
 
-        public StaticProxyGenerator(string[] referencesBasePath, Action<LogLevels, string> message)
+        public StaticProxyGenerator(string[] referencesBasePath, string targetAssemblyPath, Action<LogLevels, string> message)
         {
+            this.targetAssemblyPath = targetAssemblyPath;
             this.message = message;
 
             foreach (var referenceBasePath in referencesBasePath)
@@ -93,9 +108,9 @@ namespace Fluorite
             this.invokeAsyncMethodT = this.generatedProxyBaseType.Methods.
                 First(m => m.Name.StartsWith("InvokeAsync"));
             
-            this.generatedProxyAttributeBaseType = fluoriteCoreAssembly.MainModule.GetType(
-                "Fluorite.Internal.GeneratedProxyAttributeBase")!;
-            this.generatedProxyAttributeBaseConstructor = this.generatedProxyAttributeBaseType.Methods.
+            this.generatedProxyAttributeType = fluoriteCoreAssembly.MainModule.GetType(
+                "Fluorite.Internal.GeneratedProxyAttribute")!;
+            this.generatedProxyAttributeConstructor = this.generatedProxyAttributeType.Methods.
                 First(m => m.IsConstructor);
             
             var staticProxyFactoryType = fluoriteCoreAssembly.MainModule.GetType(
@@ -105,7 +120,7 @@ namespace Fluorite
             
             // HACK: made safer extract AttributeUsageAttribute type reference.
             var attributeUsageAttribute =
-                this.generatedProxyAttributeBaseType.CustomAttributes.First(ca =>
+                this.generatedProxyAttributeType.CustomAttributes.First(ca =>
                     ca.AttributeType.FullName == "System.AttributeUsageAttribute");
             var attributeUsageAttributeType = attributeUsageAttribute.
                 AttributeType.Resolve();
@@ -114,6 +129,33 @@ namespace Fluorite
 
             this.attributeTargetsType = attributeUsageAttribute.ConstructorArguments[0].
                 Type.Resolve();
+            this.attributeTargetsRawValue = attributeUsageAttribute.ConstructorArguments[0].
+                Value;
+
+            this.referenceAssemblies = referencesBasePath.
+                SelectMany(path => Directory.EnumerateFiles(path, "*.dll")).
+                Where(path => !excludeList.Contains(Path.GetFileName(path))).
+                Select(path =>
+                {
+                    try
+                    {
+                        var assembly = AssemblyDefinition.ReadAssembly(
+                            path,
+                            new ReaderParameters
+                            {
+                                InMemory = true,
+                                AssemblyResolver = assemblyResolver,
+                            }
+                        );
+                        return assembly;
+                    }
+                    catch
+                    {
+                        return null!;
+                    }
+                }).
+                Where(assembly => assembly != null).
+                ToArray();
         }
 
         private static string GetMethodIdentity(TypeReference type, string methodName)
@@ -232,39 +274,41 @@ namespace Fluorite
             return new InjectedProxy(targetType, proxyType);
         }
 
-        private TypeDefinition InjectGeneratedProxyAttributeType(ModuleDefinition module, IReadOnlyList<InjectedProxy> injects)
+        private TypeDefinition InjectGeneratedProxyAttributeType(
+            ModuleDefinition module,
+            IReadOnlyList<InjectedProxy> injects,
+            IReadOnlyList<MethodDefinition> initializeMethods)
         {
             var attributeType = new TypeDefinition(
-                "Fluorite.Internal",
-                "GeneratedProxyAttribute",
-                TypeAttributes.Sealed | TypeAttributes.Class,
-                module.ImportReference(this.generatedProxyAttributeBaseType));
+                $"Fluorite.Internal.{module.Assembly.Name.Name}",
+                $"GeneratedProxyAttribute",
+                TypeAttributes.Public | TypeAttributes.Sealed | TypeAttributes.Class,
+                module.ImportReference(this.generatedProxyAttributeType));
 
+            //////////////////////////////////////////////
+            // Apply AttributeUsageAttribute
+            
             var attributeUsageAttribute = new CustomAttribute(
                 module.ImportReference(this.attributeUsageAttributeConstructor));
             attributeUsageAttribute.ConstructorArguments.Add(
                 new CustomAttributeArgument(
                     module.ImportReference(this.attributeTargetsType),
-                    (int)AttributeTargets.Assembly));
+                    this.attributeTargetsRawValue));
             attributeType.CustomAttributes.Add(attributeUsageAttribute);
 
-            var dc = new MethodDefinition(
-                ".ctor",
-                MethodAttributes.Public | MethodAttributes.HideBySig | MethodAttributes.SpecialName | MethodAttributes.RTSpecialName,
-                module.ImportReference(this.typeSystem.Void));
-            var dcilp = dc.Body.GetILProcessor();
-            dcilp.Append(Instruction.Create(OpCodes.Ldarg_0));
-            dcilp.Append(Instruction.Create(OpCodes.Call,
-                module.ImportReference(this.generatedProxyAttributeBaseConstructor)));
-            dcilp.Append(Instruction.Create(OpCodes.Ret));
-            attributeType.Methods.Add(dc);
-
-            var initializeMethod = new MethodDefinition(
-                "Initialize",
-                MethodAttributes.Public | MethodAttributes.Virtual,
-                module.ImportReference(this.typeSystem.Void));
+            //////////////////////////////////////////////
+            // Type initializer
             
-            var ilProcessor = initializeMethod.Body.GetILProcessor();
+            var ti = new MethodDefinition(
+                ".cctor",
+                MethodAttributes.Private | MethodAttributes.Static | MethodAttributes.HideBySig | MethodAttributes.SpecialName | MethodAttributes.RTSpecialName,
+                module.ImportReference(this.typeSystem.Void));
+            var tiilp = ti.Body.GetILProcessor();
+
+            foreach (var im in initializeMethods)
+            {
+                tiilp.Append(Instruction.Create(OpCodes.Call, im));
+            }
 
             foreach (var injected in injects)
             {
@@ -274,13 +318,43 @@ namespace Fluorite
                     module.ImportReference(injected.TargetType));
                 registerMethod.GenericArguments.Add(
                     module.ImportReference(injected.ProxyType));
-                ilProcessor.Append(Instruction.Create(OpCodes.Call, registerMethod));
+                tiilp.Append(Instruction.Create(OpCodes.Call, registerMethod));
             }
             
-            ilProcessor.Append(Instruction.Create(OpCodes.Ret));
+            tiilp.Append(Instruction.Create(OpCodes.Ret));
+            
+            attributeType.Methods.Add(ti);
+
+            //////////////////////////////////////////////
+            // Default constructor
+            
+            var dc = new MethodDefinition(
+                ".ctor",
+                MethodAttributes.Public | MethodAttributes.HideBySig | MethodAttributes.SpecialName | MethodAttributes.RTSpecialName,
+                module.ImportReference(this.typeSystem.Void));
+            var dcilp = dc.Body.GetILProcessor();
+            dcilp.Append(Instruction.Create(OpCodes.Ldarg_0));
+            dcilp.Append(Instruction.Create(OpCodes.Call,
+                module.ImportReference(this.generatedProxyAttributeConstructor)));
+            dcilp.Append(Instruction.Create(OpCodes.Ret));
+            attributeType.Methods.Add(dc);
+
+            //////////////////////////////////////////////
+            // Initialize method
+            
+            var initializeMethod = new MethodDefinition(
+                "Initialize",
+                MethodAttributes.Public | MethodAttributes.Static,
+                module.ImportReference(this.typeSystem.Void));
+            
+            var imilp = initializeMethod.Body.GetILProcessor();
+            imilp.Append(Instruction.Create(OpCodes.Ret));
 
             attributeType.Methods.Add(initializeMethod);
  
+            //////////////////////////////////////////////
+            // Finished
+            
             module.Types.Add(attributeType);
 
             return attributeType;
@@ -293,10 +367,10 @@ namespace Fluorite
             targetAssembly.CustomAttributes.Add(generatedProxyAttribute);
         }
 
-        public bool Inject(string targetAssemblyPath)
+        public bool Inject()
         {
             this.assemblyResolver.AddSearchDirectory(
-                Path.GetDirectoryName(targetAssemblyPath));
+                Path.GetDirectoryName(this.targetAssemblyPath));
 
             var targetAssemblyName = Path.GetFileNameWithoutExtension(
                 targetAssemblyPath);
@@ -315,7 +389,16 @@ namespace Fluorite
                     Where(td => td.IsInterface && td.Interfaces.Any(ii => ii.InterfaceType.FullName == this.iHostType.FullName)).
                     ToArray();
 
-                if (targetTypes.Length >= 1)
+                var initializeMethods = this.referenceAssemblies.
+                    Select(referenceAssembly => referenceAssembly.CustomAttributes.
+                        Select(ca => ca.AttributeType.Resolve()).
+                        FirstOrDefault(at => at.BaseType.FullName == "Fluorite.Internal.GeneratedProxyAttribute")!).
+                    Where(at => at != null).
+                    Select(at => at.Methods.FirstOrDefault(m => m.IsPublic && m.IsStatic && (m.Name == "Initialize"))!).
+                    Where(m => m != null).
+                    ToArray();
+
+                if ((targetTypes.Length >= 1) || (initializeMethods.Length >= 1))
                 {
                     var injects = new List<InjectedProxy>();
                     
@@ -329,7 +412,8 @@ namespace Fluorite
                             $"Injected a static proxy: Assembly={targetAssemblyName}, Target={targetType.FullName}");
                     }
 
-                    var attributeType = this.InjectGeneratedProxyAttributeType(targetAssembly.MainModule, injects);
+                    var attributeType = this.InjectGeneratedProxyAttributeType(
+                        targetAssembly.MainModule, injects, initializeMethods);
                     this.InjectGeneratedProxyAttribute(targetAssembly, attributeType);
 
                     var assemblyTempPath = targetAssemblyPath + ".orig";

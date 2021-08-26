@@ -24,14 +24,11 @@ namespace Fluorite.Internal
 {
     [EditorBrowsable(EditorBrowsableState.Never)]
     [AttributeUsage(AttributeTargets.Assembly)]   // HACK: refer AttributeUsage type from Fluorite.Build
-    public abstract class GeneratedProxyAttributeBase : Attribute
+    public abstract class GeneratedProxyAttribute : Attribute
     {
         [EditorBrowsable(EditorBrowsableState.Never)]
-        protected GeneratedProxyAttributeBase()
+        protected GeneratedProxyAttribute()
         {
         }
-
-        [EditorBrowsable(EditorBrowsableState.Never)]
-        public abstract void Initialize();
     }
 }

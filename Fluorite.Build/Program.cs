@@ -50,13 +50,13 @@ namespace Fluorite
                 var targetAssemblyPath = args[1];
                 isTrace = args.ElementAtOrDefault(2) is { } arg2 && bool.TryParse(arg2, out var v) && v;
 
-                var generator = new StaticProxyGenerator(referencesBasePath, Message);
+                var generator = new StaticProxyGenerator(referencesBasePath, targetAssemblyPath, Message);
 
-                if (generator.Inject(targetAssemblyPath))
+                if (generator.Inject())
                 {
                     Message(
                         LogLevels.Information, 
-                        $"Replaced injected assembly: Assembly={Path.GetFileName(targetAssemblyPath)}");
+                        $"Replaced target assembly: Assembly={Path.GetFileName(targetAssemblyPath)}");
                 }
                 else
                 {

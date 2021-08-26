@@ -26,7 +26,7 @@ Fluorite - Simplest and fully-customizable RPC standalone infrastructure on .NET
 
 |main|devel|
 |:--|:--|
-|[![Fluorite CI build (main)](https://github.com/kekyo/Fluorite/workflows/.NET/badge.svg?branch=main)](https://github.com/kekyo/Fluorite/actions)|[![Fluorite CI build (devel)](https://github.com/kekyo/Fluorite/workflows/.NET/badge.svg?branch=devel)](https://github.com/kekyo/Fluorite/actions)|
+|[![Fluorite CI build (main)](https://github.com/kekyo/Fluorite/workflows/.NET/badge.svg?branch=main)](https://github.com/kekyo/Fluorite/actions?query=branch%3Amain)|[![Fluorite CI build (devel)](https://github.com/kekyo/Fluorite/workflows/.NET/badge.svg?branch=devel)](https://github.com/kekyo/Fluorite/actions?query=branch%3Adevel)|
 
 -----
 
@@ -85,7 +85,7 @@ public sealed class Item
     public int Price;
 }
 
-// Require inherits `IHost` and methods returns ValueTask<T>.
+// Require inherits `IHost` and method returns ValueTask<T>.
 public interface IShop : IHost
 {
     ValueTask<Item[]> GetItemsAsync(string category, int max);
@@ -99,7 +99,7 @@ public interface IShop : IHost
 using Fluorite;  // nuget install Fluorite.Dynamic
 
 // Connect to server with default websocket/json transport.
-// (Optional: You can register client-side expose object at last arguments)
+// (Optional: You can register client side expose object at last arguments same as server side)
 var nest = await Nest.Factory.ConnectAsync("server.example.com", 4649, false);
 try
 {
@@ -134,7 +134,7 @@ public sealed class Shop : IShop
     }
 }
 
-// Start default websocket/json server with expose objects.
+// Start default websocket/json server with expose objects at last arguments.
 var nest = await Nest.Factory.StartServer(4649, false, new Shop());
 try
 {
