@@ -293,7 +293,7 @@ namespace Fluorite
             targetAssembly.CustomAttributes.Add(generatedProxyAttribute);
         }
 
-        public bool Inject(string targetAssemblyPath, string? injectedAssemblyPath = null)
+        public bool Inject(string targetAssemblyPath)
         {
             this.assemblyResolver.AddSearchDirectory(
                 Path.GetDirectoryName(targetAssemblyPath));
@@ -332,35 +332,57 @@ namespace Fluorite
                     var attributeType = this.InjectGeneratedProxyAttributeType(targetAssembly.MainModule, injects);
                     this.InjectGeneratedProxyAttribute(targetAssembly, attributeType);
 
-                    injectedAssemblyPath ??= targetAssemblyPath;
-                    var tempPath = injectedAssemblyPath + ".tmp";
-                    
-                    // TODO: pdb path
+                    var assemblyTempPath = targetAssemblyPath + ".orig";
+                    File.Move(targetAssemblyPath, assemblyTempPath);
+
+                    var targetPdbPath = Path.Combine(
+                        Path.GetDirectoryName(targetAssemblyPath)!,
+                        Path.GetFileNameWithoutExtension(targetAssemblyPath)) + ".pdb";
+                    var pdbTempPath = targetPdbPath + ".orig";
+                    if (File.Exists(targetPdbPath))
+                    {
+                        File.Move(targetPdbPath, pdbTempPath);
+                    }
+                    else
+                    {
+                        targetPdbPath = null;
+                        pdbTempPath = null;
+                    }
 
                     try
                     {
                         targetAssembly.Write(
-                            tempPath,
+                            targetAssemblyPath,
                             new WriterParameters
                             {
                                 WriteSymbols = true,
                                 DeterministicMvid = true,
                             });
-                        File.Delete(injectedAssemblyPath);
-                        File.Move(tempPath, injectedAssemblyPath);
                     }
                     catch
                     {
                         try
                         {
-                            File.Delete(tempPath);
+                            File.Delete(targetAssemblyPath);
+                            File.Move(assemblyTempPath, targetAssemblyPath);
+                            if (pdbTempPath != null)
+                            {
+                                File.Delete(targetPdbPath!);
+                                File.Move(pdbTempPath, targetPdbPath!);
+                            }
                         }
                         catch
                         {
                         }
                         throw;
                     }
-                    
+
+                    File.Delete(assemblyTempPath);
+                    if (pdbTempPath != null)
+                    {
+                        File.Delete(pdbTempPath);
+                    }
+
                     return true;
                 }
             }
