@@ -46,22 +46,46 @@ namespace Fluorite
 
             try
             {
-                var referencesBasePath = args[0].Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries);
-                var targetAssemblyPath = args[1];
-                isTrace = args.ElementAtOrDefault(2) is { } arg2 && bool.TryParse(arg2, out var v) && v;
-
-                var generator = new StaticProxyGenerator(referencesBasePath, targetAssemblyPath, Message);
-
-                if (generator.Inject())
+                switch (args[0])
                 {
-                    Message(
-                        LogLevels.Information, 
-                        $"Replaced target assembly: Assembly={Path.GetFileName(targetAssemblyPath)}");
-                }
-                else
-                {
-                    Message(LogLevels.Information,
-                        $"Injection target isn't found: Assembly={Path.GetFileName(targetAssemblyPath)}");
+                    // Before: Generate Initializer
+                    case "-gi":
+                        var targetSourceCodePath = args[1];
+                        var resourceName = $"Fluorite.Resources.{Path.GetFileName(targetSourceCodePath)}";
+                        isTrace = args.ElementAtOrDefault(2) is { } arg2 && bool.TryParse(arg2, out var v2) && v2;
+
+                        using (var rs = typeof(Program).Assembly.GetManifestResourceStream(resourceName)!)
+                        {
+                            using (var fs = new FileStream(targetSourceCodePath,
+                                FileMode.Create, FileAccess.ReadWrite, FileShare.None))
+                            {
+                                rs.CopyTo(fs);
+                                fs.Flush();
+                            }
+                        }
+                        break;
+
+                    // After: Generate Proxy
+                    case "-gp":
+                        var referencesBasePath = args[1].Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries);
+                        var targetAssemblyPath = args[2];
+                        isTrace = args.ElementAtOrDefault(3) is { } arg3 && bool.TryParse(arg3, out var v3) && v3;
+
+                        var generator = new StaticProxyGenerator(referencesBasePath, targetAssemblyPath, Message);
+
+                        if (generator.Inject())
+                        {
+                            Message(
+                                LogLevels.Information,
+                                $"Injected target assembly: Assembly={Path.GetFileName(targetAssemblyPath)}");
+                        }
+                        else
+                        {
+                            Message(LogLevels.Information,
+                                $"Injection target isn't found: Assembly={Path.GetFileName(targetAssemblyPath)}");
+                        }
+
+                        break;
                 }
 
                 return 0;

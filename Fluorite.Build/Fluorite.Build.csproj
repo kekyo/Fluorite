@@ -23,4 +23,10 @@
     <Content Include="buildMultiTargeting\*.*" CopyToOutputDirectory="Never" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Remove="Resources\*.*" />
+    <Compile Remove="Resources\*.*" />
+    <EmbeddedResource Include="Resources\*.*" />
+  </ItemGroup>
+
 </Project>

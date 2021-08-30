@@ -23,6 +23,7 @@
   <PropertyGroup>
     <FluoriteBuildEnable Condition="'$(FluoriteBuildEnable)' == ''">True</FluoriteBuildEnable>
     <FluoriteBuildTrace Condition="'$(FluoriteBuildTrace)' == ''">False</FluoriteBuildTrace>
+    <FluoriteLanguage Condition="'$(FluoriteLanguage)' == ''">$(Language)</FluoriteLanguage>
   </PropertyGroup>
 
   <UsingTask
@@ -49,31 +50,48 @@
       </Code>
     </Task>
   </UsingTask>
-    
-  <Target Name="FluoriteBuild" AfterTargets="AfterCompile"
-    Condition="'$(FluoriteBuildEnable)' == 'True'">
-      
-    <PropertyGroup Condition="'$(MSBuildRuntimeType)' == 'Core'">
-      <_FB_PlatformName Condition="('$(MicrosoftNETBuildTasksTFM)' == '') AND ('$(BundledNETCoreAppTargetFrameworkVersion)' == '')">netcoreapp2.0</_FB_PlatformName>
-      <_FB_PlatformName Condition="'$(MicrosoftNETBuildTasksTFM)' == ''">netcoreapp$(BundledNETCoreAppTargetFrameworkVersion)</_FB_PlatformName>
-      <_FB_PlatformName Condition="'$(MicrosoftNETBuildTasksTFM)' != ''">$(MicrosoftNETBuildTasksTFM)</_FB_PlatformName>
-    </PropertyGroup>
-    <PropertyGroup Condition="'$(MSBuildRuntimeType)' != 'Core'">
-      <_FB_PlatformName>net461</_FB_PlatformName>
-    </PropertyGroup>
 
-    <PropertyGroup>
-      <FluoriteBuildToolingRuntimeName Condition="'$(FluoriteBuildToolingRuntimeName)' == ''">$(_FB_RuntimeName)</FluoriteBuildToolingRuntimeName>
-      <_FB_ToolingDir>$([System.IO.Path]::Combine('$(MSBuildThisFileDirectory)','..','tools','$(_FB_PlatformName)'))</_FB_ToolingDir>
-      <FluoriteBuildToolingDir Condition="'$(FluoriteBuildToolingDir)' == ''">$([System.IO.Path]::GetFullPath('$(_FB_ToolingDir)'))</FluoriteBuildToolingDir>
-      <FluoriteBuildToolingPath Condition="'$(FluoriteBuildToolingPath)' == ''">$([System.IO.Path]::Combine('$(FluoriteBuildToolingDir)','$(_FB_ExecutableName)'))</FluoriteBuildToolingPath>
-    </PropertyGroup>
+  <PropertyGroup>
+    <FluoriteBuildToolingRuntimeName Condition="'$(FluoriteBuildToolingRuntimeName)' == ''">$(_FluoriteBuild_RuntimeName)</FluoriteBuildToolingRuntimeName>
+    <_FluoriteBuild_ToolingDir Condition="'$(_FluoriteBuild_ToolingDir)' == ''">$([System.IO.Path]::Combine('$(MSBuildThisFileDirectory)','..','tools','$(_FluoriteBuild_PlatformName)'))</_FluoriteBuild_ToolingDir>
+    <FluoriteBuildToolingDir Condition="'$(FluoriteBuildToolingDir)' == ''">$([System.IO.Path]::GetFullPath('$(_FluoriteBuild_ToolingDir)'))</FluoriteBuildToolingDir>
+    <FluoriteBuildToolingPath Condition="'$(FluoriteBuildToolingPath)' == ''">$([System.IO.Path]::Combine('$(FluoriteBuildToolingDir)','$(_FluoriteBuild_ExecutableName)'))</FluoriteBuildToolingPath>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(FluoriteLanguage)' == 'C#'">
+    <FluoriteInitializerPath Condition="'$(FluoriteInitializerPath)' == ''">$([System.IO.Path]::Combine('$(FluoriteBuild_IntDir)','NestInitializerExtension.cs'))</FluoriteInitializerPath>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(FluoriteLanguage)' == 'F#'">
+    <FluoriteInitializerPath Condition="'$(FluoriteInitializerPath)' == ''">$([System.IO.Path]::Combine('$(FluoriteBuild_IntDir)','NestInitializerExtension.fs'))</FluoriteInitializerPath>
+  </PropertyGroup>
+
+  <Target Name="FluoriteGenerateInitializer" BeforeTargets="BeforeCompile"
+    Condition="('$(FluoriteBuildEnable)' == 'True') AND ('$(FluoriteInitializerPath)' != '')">
+
+    <Exec WorkingDirectory="$(FluoriteBuildToolingDir)"
+      Command="$(FluoriteBuildToolingRuntimeName)&quot;$(FluoriteBuildToolingPath)&quot; -gi &quot;$(FluoriteInitializerPath)&quot; $(FluoriteBuildTrace)" />
+
+    <ItemGroup Condition="'$(FluoriteLanguage)' == 'C#'">
+      <Compile Include="$(FluoriteInitializerPath)" />
+    </ItemGroup>
+
+    <ItemGroup Condition="'$(FluoriteLanguage)' == 'F#'">
+      <CompileBefore Include="$(FluoriteInitializerPath)" />
+    </ItemGroup>
+    
+  </Target>
+
+  <Target Name="FluoriteGenerateProxy" AfterTargets="AfterCompile"
+    Condition="'$(FluoriteBuildEnable)' == 'True'">
 
     <GetCombinedReferencesBasePath References="@(ReferencePath)">
       <Output TaskParameter="CombinedReferencesBasePath" PropertyName="CombinedReferencesBasePath" />
     </GetCombinedReferencesBasePath>
         
     <Exec WorkingDirectory="$(FluoriteBuildToolingDir)"
-        Command="$(FluoriteBuildToolingRuntimeName)&quot;$(FluoriteBuildToolingPath)&quot; &quot;$(CombinedReferencesBasePath)&quot; &quot;$(ProjectDir)$(IntermediateOutputPath)$(TargetFileName)&quot; $(FluoriteBuildTrace)" />
+      Command="$(FluoriteBuildToolingRuntimeName)&quot;$(FluoriteBuildToolingPath)&quot; -gp &quot;$(CombinedReferencesBasePath)&quot; &quot;$(ProjectDir)$(IntermediateOutputPath)$(TargetFileName)&quot; $(FluoriteBuildTrace)" />
+
   </Target>
+    
 </Project>

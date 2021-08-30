@@ -26,9 +26,31 @@ namespace Fluorite.Internal
     [AttributeUsage(AttributeTargets.Assembly)]   // HACK: refer AttributeUsage type from Fluorite.Build
     public abstract class GeneratedProxyAttribute : Attribute
     {
+        private static volatile object locker = new object();
+        private static volatile bool initialized;
+
         [EditorBrowsable(EditorBrowsableState.Never)]
         protected GeneratedProxyAttribute()
         {
+        }
+
+        protected abstract void OnInitialize();
+
+        [EditorBrowsable(EditorBrowsableState.Never)]
+        public void Initialize()
+        {
+            if (!initialized)
+            {
+                lock (locker)
+                {
+                    if (!initialized)
+                    {
+                        initialized = true;
+                        locker = null!;
+                        this.OnInitialize();
+                    }
+                }
+            }
         }
     }
 }

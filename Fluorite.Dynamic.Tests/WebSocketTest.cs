@@ -54,6 +54,10 @@ namespace Fluorite
             }
         }
 
+        [SetUp]
+        public void SetUp() =>
+            Nest.Factory.Initialize();
+
         [Test]
         public async Task InvokeUniDirectional()
         {

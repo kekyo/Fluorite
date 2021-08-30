@@ -66,7 +66,8 @@ namespace Fluorite
 
         private readonly TypeDefinition generatedProxyAttributeType;
         private readonly MethodDefinition generatedProxyAttributeConstructor;
-      
+        private readonly MethodDefinition generatedProxyAttributeInitializeMethod;
+
         private readonly MethodDefinition registerMethodT;
 
         public StaticProxyGenerator(string[] referencesBasePath, string targetAssemblyPath, Action<LogLevels, string> message)
@@ -112,6 +113,8 @@ namespace Fluorite
                 "Fluorite.Internal.GeneratedProxyAttribute")!;
             this.generatedProxyAttributeConstructor = this.generatedProxyAttributeType.Methods.
                 First(m => m.IsConstructor);
+            this.generatedProxyAttributeInitializeMethod = this.generatedProxyAttributeType.Methods.
+                First(m => m.Name == "Initialize");
             
             var staticProxyFactoryType = fluoriteCoreAssembly.MainModule.GetType(
                 "Fluorite.Proxy.StaticProxyFactory")!;
@@ -274,7 +277,7 @@ namespace Fluorite
             return new InjectedProxy(targetType, proxyType);
         }
 
-        private TypeDefinition InjectGeneratedProxyAttributeType(
+        private (TypeDefinition attributeType, MethodDefinition generatedProxyAttributeConstructor) InjectGeneratedProxyAttributeType(
             ModuleDefinition module,
             IReadOnlyList<InjectedProxy> injects,
             IReadOnlyList<MethodDefinition> initializeMethods)
@@ -285,9 +288,12 @@ namespace Fluorite
                 TypeAttributes.Public | TypeAttributes.Sealed | TypeAttributes.Class,
                 module.ImportReference(this.generatedProxyAttributeType));
 
+            var attributeInitializeMethod = this.generatedProxyAttributeType.
+                Methods.First(m => m.Name == "Initialize");
+
             //////////////////////////////////////////////
             // Apply AttributeUsageAttribute
-            
+
             var attributeUsageAttribute = new CustomAttribute(
                 module.ImportReference(this.attributeUsageAttributeConstructor));
             attributeUsageAttribute.ConstructorArguments.Add(
@@ -297,17 +303,32 @@ namespace Fluorite
             attributeType.CustomAttributes.Add(attributeUsageAttribute);
 
             //////////////////////////////////////////////
-            // Type initializer
-            
-            var ti = new MethodDefinition(
-                ".cctor",
-                MethodAttributes.Private | MethodAttributes.Static | MethodAttributes.HideBySig | MethodAttributes.SpecialName | MethodAttributes.RTSpecialName,
+            // Default constructor
+
+            var generatedProxyAttributeConstructor = new MethodDefinition(
+                ".ctor",
+                MethodAttributes.Public | MethodAttributes.HideBySig | MethodAttributes.SpecialName | MethodAttributes.RTSpecialName,
                 module.ImportReference(this.typeSystem.Void));
-            var tiilp = ti.Body.GetILProcessor();
+            var dcilp = generatedProxyAttributeConstructor.Body.GetILProcessor();
+            dcilp.Append(Instruction.Create(OpCodes.Ldarg_0));
+            dcilp.Append(Instruction.Create(OpCodes.Call,
+                module.ImportReference(this.generatedProxyAttributeConstructor)));
+            dcilp.Append(Instruction.Create(OpCodes.Ret));
+            attributeType.Methods.Add(generatedProxyAttributeConstructor);
+
+            //////////////////////////////////////////////
+            // OnInitialize method
+            
+            var initializeMethod = new MethodDefinition(
+                "OnInitialize",
+                MethodAttributes.Public | MethodAttributes.Virtual,
+                module.ImportReference(this.typeSystem.Void));
+            
+            var imilp = initializeMethod.Body.GetILProcessor();
 
             foreach (var im in initializeMethods)
             {
-                tiilp.Append(Instruction.Create(OpCodes.Call, im));
+                imilp.Append(Instruction.Create(OpCodes.Call, im));
             }
 
             foreach (var injected in injects)
@@ -318,36 +339,9 @@ namespace Fluorite
                     module.ImportReference(injected.TargetType));
                 registerMethod.GenericArguments.Add(
                     module.ImportReference(injected.ProxyType));
-                tiilp.Append(Instruction.Create(OpCodes.Call, registerMethod));
+                imilp.Append(Instruction.Create(OpCodes.Call, registerMethod));
             }
-            
-            tiilp.Append(Instruction.Create(OpCodes.Ret));
-            
-            attributeType.Methods.Add(ti);
 
-            //////////////////////////////////////////////
-            // Default constructor
-            
-            var dc = new MethodDefinition(
-                ".ctor",
-                MethodAttributes.Public | MethodAttributes.HideBySig | MethodAttributes.SpecialName | MethodAttributes.RTSpecialName,
-                module.ImportReference(this.typeSystem.Void));
-            var dcilp = dc.Body.GetILProcessor();
-            dcilp.Append(Instruction.Create(OpCodes.Ldarg_0));
-            dcilp.Append(Instruction.Create(OpCodes.Call,
-                module.ImportReference(this.generatedProxyAttributeConstructor)));
-            dcilp.Append(Instruction.Create(OpCodes.Ret));
-            attributeType.Methods.Add(dc);
-
-            //////////////////////////////////////////////
-            // Initialize method
-            
-            var initializeMethod = new MethodDefinition(
-                "Initialize",
-                MethodAttributes.Public | MethodAttributes.Static,
-                module.ImportReference(this.typeSystem.Void));
-            
-            var imilp = initializeMethod.Body.GetILProcessor();
             imilp.Append(Instruction.Create(OpCodes.Ret));
 
             attributeType.Methods.Add(initializeMethod);
@@ -357,7 +351,7 @@ namespace Fluorite
             
             module.Types.Add(attributeType);
 
-            return attributeType;
+            return (attributeType, generatedProxyAttributeConstructor);
         }
 
         private void InjectGeneratedProxyAttribute(AssemblyDefinition targetAssembly, TypeDefinition attributeType)
@@ -365,6 +359,32 @@ namespace Fluorite
             var generatedProxyAttribute = new CustomAttribute(
                 targetAssembly.MainModule.ImportReference(attributeType.Methods.First(m => m.IsConstructor)));
             targetAssembly.CustomAttributes.Add(generatedProxyAttribute);
+        }
+
+        private void ReplaceInitializeMethodBody(
+            ModuleDefinition module,
+            MethodDefinition generatedProxyAttributeConstructor)
+        {
+            if (!(module.Types.FirstOrDefault(t =>
+                t.IsNotPublic && t.IsAbstract && t.IsSealed &&
+                (t.FullName == "Fluorite.NestInitializerExtension")) is { } nestInitializerExtensionType &&
+                nestInitializerExtensionType.Methods.FirstOrDefault(m =>
+                    m.IsPublic && m.IsStatic &&
+                    (m.ReturnType.FullName == "System.Void") &&
+                    (m.Name == "Initialize") &&
+                    (m.Parameters.SingleOrDefault()?.ParameterType.FullName == "Fluorite.NestFactory")) is { } nestInitializeMethod))
+            {
+                throw new InvalidOperationException(
+                    $"Couldn't find and replace NestInitializerExtension. Fluorite.Build script maybe didn't finish normally.");
+            }
+
+            var ilp = nestInitializeMethod.Body.GetILProcessor();
+            ilp.Clear();
+            ilp.Append(Instruction.Create(OpCodes.Newobj,
+                module.ImportReference(generatedProxyAttributeConstructor)));
+            ilp.Append(Instruction.Create(OpCodes.Call,
+                module.ImportReference(this.generatedProxyAttributeInitializeMethod)));
+            ilp.Append(Instruction.Create(OpCodes.Ret));
         }
 
         public bool Inject()
@@ -412,12 +432,15 @@ namespace Fluorite
                             $"Injected a static proxy: Assembly={targetAssemblyName}, Target={targetType.FullName}");
                     }
 
-                    var attributeType = this.InjectGeneratedProxyAttributeType(
+                    var (attributeType, generatedProxyAttributeConstructor) = this.InjectGeneratedProxyAttributeType(
                         targetAssembly.MainModule, injects, initializeMethods);
                     this.InjectGeneratedProxyAttribute(targetAssembly, attributeType);
 
+                    this.ReplaceInitializeMethodBody(
+                        targetAssembly.MainModule, generatedProxyAttributeConstructor);
+
                     var assemblyTempPath = targetAssemblyPath + ".orig";
-                    File.Move(targetAssemblyPath, assemblyTempPath);
+                    File.Copy(targetAssemblyPath, assemblyTempPath, true);
 
                     var targetPdbPath = Path.Combine(
                         Path.GetDirectoryName(targetAssemblyPath)!,
@@ -425,7 +448,7 @@ namespace Fluorite
                     var pdbTempPath = targetPdbPath + ".orig";
                     if (File.Exists(targetPdbPath))
                     {
-                        File.Move(targetPdbPath, pdbTempPath);
+                        File.Copy(targetPdbPath, pdbTempPath, true);
                     }
                     else
                     {

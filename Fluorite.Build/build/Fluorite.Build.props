@@ -21,16 +21,30 @@
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
 
   <PropertyGroup Condition="'$(MSBuildRuntimeType)' == 'Core'">
-    <_FB_RuntimeName>dotnet </_FB_RuntimeName>
-    <_FB_ExecutableName>fb.dll</_FB_ExecutableName>
+    <_FluoriteBuild_RuntimeName>dotnet </_FluoriteBuild_RuntimeName>
+    <_FluoriteBuild_ExecutableName>fb.dll</_FluoriteBuild_ExecutableName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(MSBuildRuntimeType)' == 'Full'">
-    <_FB_RuntimeName></_FB_RuntimeName>
-    <_FB_ExecutableName>fb.exe</_FB_ExecutableName>
+    <_FluoriteBuild_RuntimeName></_FluoriteBuild_RuntimeName>
+    <_FluoriteBuild_ExecutableName>fb.exe</_FluoriteBuild_ExecutableName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(MSBuildRuntimeType)' == 'Mono'">
-    <_FB_RuntimeName>mono </_FB_RuntimeName>
-    <_FB_ExecutableName>fb.exe</_FB_ExecutableName>
+    <_FluoriteBuild_RuntimeName>mono </_FluoriteBuild_RuntimeName>
+    <_FluoriteBuild_ExecutableName>fb.exe</_FluoriteBuild_ExecutableName>
+  </PropertyGroup>
+      
+  <PropertyGroup Condition="'$(MSBuildRuntimeType)' == 'Core'">
+    <_FluoriteBuild_PlatformName Condition="('$(MicrosoftNETBuildTasksTFM)' == '') AND ('$(BundledNETCoreAppTargetFrameworkVersion)' == '')">netcoreapp2.0</_FluoriteBuild_PlatformName>
+    <_FluoriteBuild_PlatformName Condition="'$(MicrosoftNETBuildTasksTFM)' == ''">netcoreapp$(BundledNETCoreAppTargetFrameworkVersion)</_FluoriteBuild_PlatformName>
+    <_FluoriteBuild_PlatformName Condition="'$(MicrosoftNETBuildTasksTFM)' != ''">$(MicrosoftNETBuildTasksTFM)</_FluoriteBuild_PlatformName>
+  </PropertyGroup>
+    
+  <PropertyGroup Condition="'$(MSBuildRuntimeType)' != 'Core'">
+    <_FluoriteBuild_PlatformName>net461</_FluoriteBuild_PlatformName>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <FluoriteBuild_IntDir>$([System.IO.Path]::Combine('$(MSBuildProjectDirectory)','obj','$(Configuration)','$(TargetFramework)'))</FluoriteBuild_IntDir>
   </PropertyGroup>
 
 </Project>
