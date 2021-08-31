@@ -14,6 +14,9 @@
     <copyright>Copyright (c) 2021 Kouji Matsui</copyright>
     <tags>simple async standalone bidirectional websocket json transport rpc-server rpc-client full-duplex complementary</tags>
     <repository type="git" url="https://github.com/kekyo/Fluorite.git" branch="$RepositoryBranch$" commit="$RepositoryCommit$" />
+    <dependencies>
+      <dependency id="Fluorite.Core" version="$PackageVersion$" exclude="Build,Analyzers" />
+    </dependencies>
   </metadata>
   <files>
     <file src="..\Images\Fluorite.100.png" target="/" />
