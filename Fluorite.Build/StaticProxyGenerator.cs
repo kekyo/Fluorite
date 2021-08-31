@@ -340,7 +340,7 @@ namespace Fluorite
             foreach (var nestedGeneratedProxyAttributeConstructor in nestedGeneratedProxyAttributeConstructors)
             {
                 oimilp.Append(Instruction.Create(OpCodes.Newobj,
-                    nestedGeneratedProxyAttributeConstructor));
+                    module.ImportReference(nestedGeneratedProxyAttributeConstructor)));
                 oimilp.Append(Instruction.Create(OpCodes.Call,
                     module.ImportReference(this.generatedProxyAttributeInitializeMethod)));
             }

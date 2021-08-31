@@ -34,12 +34,12 @@ namespace Fluorite
                 switch (level)
                 {
                     case LogLevels.Information:
-                        Console.WriteLine($"Fluorite.Build: {message}");
+                        Console.WriteLine($"Fluorite.Build[{ThisAssembly.AssemblyVersion}]: {message}");
                         break;
                     case LogLevels.Trace when !isTrace:
                         break;
                     default:
-                        Console.WriteLine($"Fluorite.Build: {level.ToString().ToLowerInvariant()}: {message}");
+                        Console.WriteLine($"Fluorite.Build[{ThisAssembly.AssemblyVersion}]: {level.ToString().ToLowerInvariant()}: {message}");
                         break;
                 }
             }
