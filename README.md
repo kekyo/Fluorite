@@ -32,10 +32,14 @@ Fluorite - Simplest and fully-customizable RPC standalone infrastructure on .NET
 
 ## What is this ?
 
-An implementation of asynchronous RPC (remote procedure call) controller.
+An implementation of bi-directional/complementary/asynchronous RPC (remote procedure call) controller with customizable serializer/transport interface.
 
-Fluorite doesn't have depending other large libraries (For example: ASP.NET).
-You can easy integrate flexible bi-directional messaging system on your own application.
+This is simple diagram for user side Fluorite architecture:
+
+![Fluorite Diagram](./Images/diagram.png)
+
+Fluorite doesn't have any depending other large libraries (For example: ASP.NET).
+You can easy integrate flexible RPC messaging system on your own application.
 
 ### Features
 
