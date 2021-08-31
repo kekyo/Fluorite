@@ -418,83 +418,90 @@ namespace Fluorite
                     Where(m => m != null).
                     ToArray();
 
-                if ((targetTypes.Length >= 1) || (initializeMethods.Length >= 1))
-                {
-                    var injects = new List<InjectedProxy>();
+                var injects = new List<InjectedProxy>();
                     
-                    foreach (var targetType in targetTypes)
-                    {
-                        var injected = this.InjectProxyType(targetAssembly.MainModule, targetType);
-                        injects.Add(injected);
+                foreach (var targetType in targetTypes)
+                {
+                    var injected = this.InjectProxyType(targetAssembly.MainModule, targetType);
+                    injects.Add(injected);
                         
-                        this.message(
-                            LogLevels.Trace,
-                            $"Injected a static proxy: Assembly={targetAssemblyName}, Target={targetType.FullName}");
-                    }
+                    this.message(
+                        LogLevels.Trace,
+                        $"Injected a static proxy: Assembly={targetAssemblyName}, Target={targetType.FullName}");
+                }
 
-                    var (attributeType, generatedProxyAttributeConstructor) = this.InjectGeneratedProxyAttributeType(
-                        targetAssembly.MainModule, injects, initializeMethods);
-                    this.InjectGeneratedProxyAttribute(targetAssembly, attributeType);
+                var (attributeType, generatedProxyAttributeConstructor) = this.InjectGeneratedProxyAttributeType(
+                    targetAssembly.MainModule, injects, initializeMethods);
+                this.InjectGeneratedProxyAttribute(targetAssembly, attributeType);
 
-                    this.ReplaceInitializeMethodBody(
-                        targetAssembly.MainModule, generatedProxyAttributeConstructor);
+                this.message(
+                    LogLevels.Trace,
+                    $"Applied a GeneratedProxyAttribute: Assembly={targetAssemblyName}");
 
-                    var assemblyTempPath = targetAssemblyPath + ".orig";
-                    File.Copy(targetAssemblyPath, assemblyTempPath, true);
+                this.ReplaceInitializeMethodBody(
+                    targetAssembly.MainModule, generatedProxyAttributeConstructor);
 
-                    var targetPdbPath = Path.Combine(
-                        Path.GetDirectoryName(targetAssemblyPath)!,
-                        Path.GetFileNameWithoutExtension(targetAssemblyPath)) + ".pdb";
-                    var pdbTempPath = targetPdbPath + ".orig";
-                    if (File.Exists(targetPdbPath))
-                    {
-                        File.Copy(targetPdbPath, pdbTempPath, true);
-                    }
-                    else
-                    {
-                        targetPdbPath = null;
-                        pdbTempPath = null;
-                    }
+                this.message(
+                    LogLevels.Trace,
+                    $"Injected Initializer method: Assembly={targetAssemblyName}");
 
+                var assemblyTempPath = targetAssemblyPath + ".orig";
+                File.Copy(targetAssemblyPath, assemblyTempPath, true);
+
+                var targetPdbPath = Path.Combine(
+                    Path.GetDirectoryName(targetAssemblyPath)!,
+                    Path.GetFileNameWithoutExtension(targetAssemblyPath)) + ".pdb";
+                var pdbTempPath = targetPdbPath + ".orig";
+                if (File.Exists(targetPdbPath))
+                {
+                    File.Copy(targetPdbPath, pdbTempPath, true);
+                }
+                else
+                {
+                    targetPdbPath = null;
+                    pdbTempPath = null;
+                }
+
+                try
+                {
+                    targetAssembly.Write(
+                        targetAssemblyPath,
+                        new WriterParameters
+                        {
+                            WriteSymbols = true,
+                            DeterministicMvid = true,
+                        });
+
+                    this.message(
+                        LogLevels.Trace,
+                        $"Wrote injected assembly: Assembly={targetAssemblyName}");
+                }
+                catch
+                {
                     try
                     {
-                        targetAssembly.Write(
-                            targetAssemblyPath,
-                            new WriterParameters
-                            {
-                                WriteSymbols = true,
-                                DeterministicMvid = true,
-                            });
+                        File.Delete(targetAssemblyPath);
+                        File.Move(assemblyTempPath, targetAssemblyPath);
+                        if (pdbTempPath != null)
+                        {
+                            File.Delete(targetPdbPath!);
+                            File.Move(pdbTempPath, targetPdbPath!);
+                        }
                     }
                     catch
                     {
-                        try
-                        {
-                            File.Delete(targetAssemblyPath);
-                            File.Move(assemblyTempPath, targetAssemblyPath);
-                            if (pdbTempPath != null)
-                            {
-                                File.Delete(targetPdbPath!);
-                                File.Move(pdbTempPath, targetPdbPath!);
-                            }
-                        }
-                        catch
-                        {
-                        }
-                        throw;
                     }
+                    throw;
+                }
 
-                    File.Delete(assemblyTempPath);
-                    if (pdbTempPath != null)
-                    {
-                        File.Delete(pdbTempPath);
-                    }
-
-                    return true;
+                File.Delete(assemblyTempPath);
+                if (pdbTempPath != null)
+                {
+                    File.Delete(pdbTempPath);
                 }
             }
 
-            return false;
+            return true;
         }
     }
 }
