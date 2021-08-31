@@ -29,30 +29,6 @@ namespace Fluorite.Advanced
     public static class NestTransportFactoryExtension
     {
         public static async ValueTask<Nest> ConnectAsync(
-            this NestFactory _, string serverAddress, int port, bool performSecureConnection, ISerializer serializer)
-        {
-            var transport = WebSocketClientTransport.Create();
-            await transport.ConnectAsync(serverAddress, port, performSecureConnection).ConfigureAwait(false);
-            return _.Create(NestSettings.Create(serializer, transport));
-        }
-
-        public static async ValueTask<Nest> ConnectAsync(
-            this NestFactory _, EndPoint serverEndPoint, bool performSecureConnection, ISerializer serializer)
-        {
-            var transport = WebSocketClientTransport.Create();
-            await transport.ConnectAsync(serverEndPoint, performSecureConnection).ConfigureAwait(false);
-            return _.Create(NestSettings.Create(serializer, transport));
-        }
-
-        public static async ValueTask<Nest> ConnectAsync(
-            this NestFactory _, Uri serverEndPoint, ISerializer serializer)
-        {
-            var transport = WebSocketClientTransport.Create();
-            await transport.ConnectAsync(serverEndPoint).ConfigureAwait(false);
-            return _.Create(NestSettings.Create(serializer, transport));
-        }
-
-        public static async ValueTask<Nest> ConnectAsync(
             this NestFactory _, string serverAddress, int port, bool performSecureConnection, ISerializer serializer, IPeerProxyFactory factory)
         {
             var transport = WebSocketClientTransport.Create();

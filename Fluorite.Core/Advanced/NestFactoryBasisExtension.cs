@@ -40,12 +40,9 @@ namespace Fluorite.Advanced
             }
         }
 
-        public static Nest Create(
-            this NestFactory _, NestSettings settings)
-        {
-            AssertInitialized();
-            return new Nest(settings, default!);
-        }
+        public static void Initialize(
+            this NestFactory _) =>
+            MarkInitialized();
 
         public static Nest Create(
             this NestFactory _, NestSettings settings, IPeerProxyFactory factory)
