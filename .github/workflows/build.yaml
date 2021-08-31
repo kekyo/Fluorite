@@ -31,6 +31,8 @@ jobs:
       uses: actions/setup-dotnet@v1
       with:
         dotnet-version: 5.0.100
+    - name: Make artifacts directory
+      run: mkdir artifacts
     - name: Install dependencies
       run: dotnet restore
     - name: Build
