@@ -27,6 +27,9 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 	EndProjectSection
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Fluorite.Tests", "Fluorite.Tests\Fluorite.Tests.csproj", "{474D8935-DE5E-4531-88E6-9775C7021464}"
+	ProjectSection(ProjectDependencies) = postProject
+		{9907BFC5-54DA-4671-B3E6-98EDC4FE208E} = {9907BFC5-54DA-4671-B3E6-98EDC4FE208E}
+	EndProjectSection
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Fluorite.Build", "Fluorite.Build\Fluorite.Build.csproj", "{9907BFC5-54DA-4671-B3E6-98EDC4FE208E}"
 EndProject
