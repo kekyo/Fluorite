@@ -10,7 +10,7 @@ Fluorite - Simplest and fully-customizable RPC standalone infrastructure on .NET
 
 |Package|main|devel|Description|
 |:--|:--|:--|:--|
-|Fluorite|[![NuGet Fluorite](https://img.shields.io/nuget/v/Fluorite.svg?style=flat)](https://www.nuget.org/packages/Fluorite)|[![MyGet Fluorite](https://img.shields.io/myget/fluorite/v/Fluorite.svg?style=flat&label=myget)](https://www.myget.org/feed/fluorite/package/nuget/Fluorite)|Meta-package (Provides automated generating static proxy)|
+|Fluorite|[![NuGet Fluorite](https://img.shields.io/nuget/v/Fluorite.svg?style=flat)](https://www.nuget.org/packages/Fluorite)|[![MyGet Fluorite](https://img.shields.io/myget/fluorite/v/Fluorite.svg?style=flat&label=myget)](https://www.myget.org/feed/fluorite/package/nuget/Fluorite)|Meta-package (Provides automated generating static proxy / **Experimental**)|
 |Fluorite.Dynamic|[![NuGet Fluorite.Dynamic](https://img.shields.io/nuget/v/Fluorite.Dynamic.svg?style=flat)](https://www.nuget.org/packages/Fluorite.Dynamic)|[![MyGet Fluorite.Dynamic](https://img.shields.io/myget/fluorite/v/Fluorite.Dynamic.svg?style=flat&label=myget)](https://www.myget.org/feed/fluorite/package/nuget/Fluorite.Dynamic)|Meta-package (Provides automated generating dynamic proxy)|
 
 ### Sub packages
