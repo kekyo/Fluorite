@@ -22,6 +22,12 @@ echo.
 
 rem git clean -xfd
 
+if not exist artifacts (
+    mkdir artifacts
+) else (
+    del /q /f /s artifacts\*.*
+)
+
 dotnet restore
 dotnet build -c Release -p:Platform="Any CPU" Fluorite.sln
 
