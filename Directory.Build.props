@@ -32,7 +32,7 @@
     <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/kekyo/Fluorite.git</PackageProjectUrl>
     <PackageIcon>Fluorite.100.png</PackageIcon>
-    <PackageTags>simple;async;bidirectional;websocket;json;transport</PackageTags>
+    <PackageTags>simple;async;standalone;bidirectional;websocket;json;transport;rpc-server;rpc-client;full-duplex;complementary</PackageTags>
     <AllowedOutputExtensionsInPackageBuildOutputFolder>.pdb</AllowedOutputExtensionsInPackageBuildOutputFolder>
     <GenerateLibraryLayout>true</GenerateLibraryLayout>
     <NoWarn>$(NoWarn);NU1605;NU1701</NoWarn>

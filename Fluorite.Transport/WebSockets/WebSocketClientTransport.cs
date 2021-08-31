@@ -17,7 +17,6 @@
 //
 ////////////////////////////////////////////////////////////////////////////
 
-using Fluorite.Internal;
 using Fluorite.Transport;
 using System;
 using System.Diagnostics;

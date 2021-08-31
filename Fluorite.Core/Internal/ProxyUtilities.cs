@@ -17,14 +17,17 @@
 //
 ////////////////////////////////////////////////////////////////////////////
 
+using Fluorite.Advanced;
 using System;
+using System.ComponentModel;
 using System.Linq;
 
 namespace Fluorite.Internal
 {
-    internal static class ProxyUtilities
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static class ProxyUtilities
     {
-        public static string GetInterfaceNames(IHost proxy) =>
+        internal static string GetInterfaceNames(IHost proxy) =>
             string.Join(
                 ", ",
                 proxy.GetType().
@@ -32,15 +35,21 @@ namespace Fluorite.Internal
                 Where(t => (t != typeof(IHost)) && typeof(IHost).IsAssignableFrom(t)).
                 Select(t => t.FullName));
 
+        [EditorBrowsable(EditorBrowsableState.Never)]
         public static string GetMethodIdentity(Type type, string methodName)
         {
             var name = methodName.EndsWith("Async") ?
                 methodName.Substring(0, methodName.Length - 5) :
                 methodName;
-            return $"{type.FullName}.{name}";
+            return $"{type.FullName!.Replace('+', '.')}.{name}";
         }
 
+        [EditorBrowsable(EditorBrowsableState.Never)]
         public static string GetMethodIdentity<TPeer>(string methodName) =>
             GetMethodIdentity(typeof(TPeer), methodName);
+
+        [EditorBrowsable(EditorBrowsableState.Never)]
+        public static void MarkInitialized() =>
+            NestFactoryBasisExtension.MarkInitialized();
     }
 }

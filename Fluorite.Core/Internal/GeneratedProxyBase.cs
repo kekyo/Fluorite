@@ -17,24 +17,28 @@
 //
 ////////////////////////////////////////////////////////////////////////////
 
-using Fluorite.Internal;
+using Fluorite.Proxy;
+using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 
-namespace Fluorite.Proxy
+namespace Fluorite.Internal
 {
-    public abstract class StaticProxyBase : ProxyBase
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public abstract class GeneratedProxyBase : ProxyBase
     {
+        [EditorBrowsable(EditorBrowsableState.Never)]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        protected StaticProxyBase()
+        protected GeneratedProxyBase()
         {
         }
 
+        [EditorBrowsable(EditorBrowsableState.Never)]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        protected ValueTask<TResult> InvokeAsync<TPeer, TResult>(string methodName, params object[] args) =>
-            this.nest!.InvokeAsync<TResult>(ProxyUtilities.GetMethodIdentity<TPeer>(methodName), args);
+        protected ValueTask<TResult> InvokeAsync<TResult>(string methodIdentity, object[] args) =>
+            this.nest!.InvokeAsync<TResult>(methodIdentity, args);
 
         public override string ToString() =>
-            $"Fluorite static proxy: {ProxyUtilities.GetInterfaceNames(this)}";
+            $"Fluorite generated proxy: {ProxyUtilities.GetInterfaceNames(this)}";
     }
 }

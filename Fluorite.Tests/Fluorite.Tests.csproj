@@ -1,7 +1,12 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
+  <Import Project="..\Fluorite.Build\build\Fluorite.Build.props" />
+    
+  <!-- ======================================================== -->
+
   <PropertyGroup>
     <TargetFrameworks>net45;net48;netcoreapp2.1;netcoreapp3.1;net5.0</TargetFrameworks>
+    <DefineConstants Condition="'$(CITest)' != ''">$(DefineConstants);CITest</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup>
@@ -12,7 +17,21 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Fluorite.Dynamic\Fluorite.Dynamic.csproj" />
+    <ProjectReference Include="..\Fluorite\Fluorite.csproj" />
   </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="..\Fluorite.Dynamic.Tests\*.cs" />
+  </ItemGroup>
+    
+  <!-- ======================================================== -->
+  <!-- Customized `Fluorite.Build.targets` -->
+
+  <PropertyGroup>
+    <FluoriteLanguage>C#</FluoriteLanguage>
+    <_FluoriteBuild_ToolingDir>$([System.IO.Path]::Combine('$(MSBuildThisFileDirectory)','..','Fluorite.Build','bin','$(Configuration)','$(_FluoriteBuild_PlatformName)'))</_FluoriteBuild_ToolingDir>
+  </PropertyGroup>
+
+  <Import Project="..\Fluorite.Build\build\Fluorite.Build.targets" />
 
 </Project>

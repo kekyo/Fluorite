@@ -17,24 +17,41 @@
 //
 ////////////////////////////////////////////////////////////////////////////
 
-using Fluorite.Internal;
+using Fluorite.Proxy;
+using System;
 using System.Runtime.CompilerServices;
-using System.Threading.Tasks;
 
-namespace Fluorite.Proxy
+namespace Fluorite.Advanced
 {
-    public abstract class StaticProxyBase : ProxyBase
+    public static class NestFactoryBasisExtension
     {
+        private static bool initialized = false;
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        protected StaticProxyBase()
+        internal static void MarkInitialized() =>
+            initialized = true;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static void AssertInitialized()
         {
+            if (!initialized)
+            {
+                throw new InvalidOperationException("Nest doesn't initialized");
+            }
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        protected ValueTask<TResult> InvokeAsync<TPeer, TResult>(string methodName, params object[] args) =>
-            this.nest!.InvokeAsync<TResult>(ProxyUtilities.GetMethodIdentity<TPeer>(methodName), args);
+        public static Nest Create(
+            this NestFactory _, NestSettings settings)
+        {
+            AssertInitialized();
+            return new Nest(settings, default!);
+        }
 
-        public override string ToString() =>
-            $"Fluorite static proxy: {ProxyUtilities.GetInterfaceNames(this)}";
+        public static Nest Create(
+            this NestFactory _, NestSettings settings, IPeerProxyFactory factory)
+        {
+            AssertInitialized();
+            return new Nest(settings, factory);
+        }
     }
 }

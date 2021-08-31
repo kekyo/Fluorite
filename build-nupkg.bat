@@ -22,12 +22,19 @@ echo.
 
 rem git clean -xfd
 
+if not exist artifacts (
+    mkdir artifacts
+) else (
+    del /q /f /s artifacts\*.*
+)
+
 dotnet restore
 dotnet build -c Release -p:Platform="Any CPU" Fluorite.sln
 
 dotnet pack -p:Configuration=Release -p:Platform=AnyCPU -o artifacts Fluorite.Core\Fluorite.Core.csproj
 dotnet pack -p:Configuration=Release -p:Platform=AnyCPU -o artifacts Fluorite.Serializer\Fluorite.Serializer.csproj
 dotnet pack -p:Configuration=Release -p:Platform=AnyCPU -o artifacts Fluorite.Transport\Fluorite.Transport.csproj
+dotnet pack -p:Configuration=Release -p:Platform=AnyCPU -o artifacts Fluorite.Build\Fluorite.Build.csproj
 
 dotnet pack -p:Configuration=Release -p:Platform=AnyCPU -o artifacts Fluorite\Fluorite.csproj
 dotnet pack -p:Configuration=Release -p:Platform=AnyCPU -o artifacts Fluorite.Dynamic\Fluorite.Dynamic.csproj

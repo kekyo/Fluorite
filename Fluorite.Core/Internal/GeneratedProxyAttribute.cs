@@ -1,4 +1,4 @@
-﻿////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////
 //
 // Fluorite - Simplest and fully-customizable RPC standalone infrastructure.
 // Copyright (c) 2021 Kouji Matsui (@kozy_kekyo, @kekyo2)
@@ -17,29 +17,40 @@
 //
 ////////////////////////////////////////////////////////////////////////////
 
-using Fluorite.Proxy;
+using System;
 using System.ComponentModel;
-using System.Runtime.CompilerServices;
-using System.Threading.Tasks;
 
 namespace Fluorite.Internal
 {
     [EditorBrowsable(EditorBrowsableState.Never)]
-    public abstract class DynamicProxyBase : ProxyBase
+    [AttributeUsage(AttributeTargets.Assembly)]   // HACK: refer AttributeUsage type from Fluorite.Build
+    public abstract class GeneratedProxyAttribute : Attribute
     {
+        private static volatile object locker = new object();
+        private static volatile bool initialized;
+
         [EditorBrowsable(EditorBrowsableState.Never)]
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        protected DynamicProxyBase()
+        protected GeneratedProxyAttribute()
         {
         }
 
-        [EditorBrowsable(EditorBrowsableState.Never)]
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        protected ValueTask<TResult> InvokeAsync<TResult>(string methodIdentity, object[] args) =>
-            this.nest!.InvokeAsync<TResult>(methodIdentity, args);
+        protected abstract void OnInitialize();
 
         [EditorBrowsable(EditorBrowsableState.Never)]
-        public override string ToString() =>
-            $"Fluorite dynamic proxy: {ProxyUtilities.GetInterfaceNames(this)}";
+        public void Initialize()
+        {
+            if (!initialized)
+            {
+                lock (locker)
+                {
+                    if (!initialized)
+                    {
+                        initialized = true;
+                        locker = null!;
+                        this.OnInitialize();
+                    }
+                }
+            }
+        }
     }
 }

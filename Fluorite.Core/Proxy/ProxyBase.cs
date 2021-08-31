@@ -17,21 +17,17 @@
 //
 ////////////////////////////////////////////////////////////////////////////
 
-using Fluorite.Proxy;
 using System.Runtime.CompilerServices;
 
-namespace Fluorite.Advanced
+namespace Fluorite.Proxy
 {
-    public static class RawNestFactoryExtension
+    public abstract class ProxyBase : IHost
     {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Nest Create(
-            this NestFactory _, NestSettings settings) =>
-            new Nest(settings, default!);
+        internal Nest? nest;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Nest Create(
-            this NestFactory _, NestSettings settings, IPeerProxyFactory factory) =>
-            new Nest(settings, factory);
+        private protected ProxyBase()
+        {
+        }
     }
 }

@@ -35,7 +35,7 @@ namespace Fluorite.Proxy
 
         private void InternalRegister<TPeer, TProxy>()
             where TPeer : class, IHost
-            where TProxy : StaticProxyBase, new()
+            where TProxy : ProxyBase, new()
         {
             var type = typeof(TPeer);
             if (!type.IsInterface())
@@ -91,7 +91,7 @@ namespace Fluorite.Proxy
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void Register<TPeer, TProxy>()
             where TPeer : class, IHost
-            where TProxy : StaticProxyBase, new() =>
+            where TProxy : ProxyBase, new() =>
             Instance.InternalRegister<TPeer, TProxy>();
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

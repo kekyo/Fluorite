@@ -18,6 +18,7 @@
 ////////////////////////////////////////////////////////////////////////////
 
 using Fluorite.Advanced;
+using Fluorite.Internal;
 using Fluorite.Json;
 using Fluorite.Proxy;
 using Fluorite.Transport;
@@ -31,6 +32,9 @@ namespace Fluorite
 {
     public static class NestFactoryExtension
     {
+        public static void Initialize(this NestFactory _) =>
+            ProxyUtilities.MarkInitialized();
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Nest Create(
             this NestFactory _, NestSettings settings) =>

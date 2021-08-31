@@ -24,6 +24,7 @@ using System.Threading.Tasks;
 
 namespace Fluorite
 {
+#if !CITest
     [TestFixture]
     public sealed class WebSocketTest
     {
@@ -53,6 +54,10 @@ namespace Fluorite
                 return new ValueTask<string>($"2: {arg0} - {arg1} - {arg2}");
             }
         }
+
+        [SetUp]
+        public void SetUp() =>
+            Nest.Factory.Initialize();
 
         [Test]
         public async Task InvokeUniDirectional()
@@ -190,4 +195,5 @@ namespace Fluorite
             }
         }
     }
+#endif
 }

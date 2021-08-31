@@ -31,10 +31,12 @@ jobs:
       uses: actions/setup-dotnet@v1
       with:
         dotnet-version: 5.0.100
+    - name: Make artifacts directory
+      run: mkdir artifacts
     - name: Install dependencies
       run: dotnet restore
     - name: Build
       run: dotnet build --configuration Release --no-restore
-#   - name: Test
-#     run: dotnet test --no-restore --verbosity normal
-#     timeout-minutes: 5
+    - name: Test
+      run: dotnet test --no-restore --verbosity normal -p:CITest=True
+      timeout-minutes: 5

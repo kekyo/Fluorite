@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
+  <metadata>
+    <id>Fluorite</id>
+    <version>$PackageVersion$</version>
+    <authors>Kouji Matsui (@kozy_kekyo, @kekyo2)</authors>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <license type="expression">Apache-2.0</license>
+    <licenseUrl>https://licenses.nuget.org/Apache-2.0</licenseUrl>
+    <icon>Fluorite.100.png</icon>
+    <projectUrl>https://github.com/kekyo/Fluorite.git</projectUrl>
+    <description>Simplest and fully-customizable RPC standalone infrastructure.</description>
+    <releaseNotes>$PackageReleaseNotes$</releaseNotes>
+    <copyright>Copyright (c) 2021 Kouji Matsui</copyright>
+    <tags>simple async standalone bidirectional websocket json transport rpc-server rpc-client full-duplex complementary</tags>
+    <repository type="git" url="https://github.com/kekyo/Fluorite.git" branch="$RepositoryBranch$" commit="$RepositoryCommit$" />
+    <dependencies>
+      <group targetFramework=".NETFramework4.5">
+        <dependency id="Fluorite.Build" version="$PackageVersion$" />
+        <dependency id="Fluorite.Core" version="$PackageVersion$" exclude="Build,Analyzers" />
+        <dependency id="Fluorite.Serializer" version="$PackageVersion$" exclude="Build,Analyzers" />
+        <dependency id="Fluorite.Transport" version="$PackageVersion$" exclude="Build,Analyzers" />
+        <dependency id="System.Threading.Tasks.Extensions" version="4.5.4" exclude="Build,Analyzers" />
+      </group>
+      <group targetFramework=".NETFramework4.6.2">
+        <dependency id="Fluorite.Build" version="$PackageVersion$" />
+        <dependency id="Fluorite.Core" version="$PackageVersion$" exclude="Build,Analyzers" />
+        <dependency id="Fluorite.Serializer" version="$PackageVersion$" exclude="Build,Analyzers" />
+        <dependency id="Fluorite.Transport" version="$PackageVersion$" exclude="Build,Analyzers" />
+        <dependency id="System.Threading.Tasks.Extensions" version="4.5.4" exclude="Build,Analyzers" />
+      </group>
+      <group targetFramework=".NETFramework4.8">
+        <dependency id="Fluorite.Build" version="$PackageVersion$" />
+        <dependency id="Fluorite.Core" version="$PackageVersion$" exclude="Build,Analyzers" />
+        <dependency id="Fluorite.Serializer" version="$PackageVersion$" exclude="Build,Analyzers" />
+        <dependency id="Fluorite.Transport" version="$PackageVersion$" exclude="Build,Analyzers" />
+        <dependency id="System.Threading.Tasks.Extensions" version="4.5.4" exclude="Build,Analyzers" />
+      </group>
+      <group targetFramework=".NETCoreApp2.0">
+        <dependency id="Fluorite.Build" version="$PackageVersion$" />
+        <dependency id="Fluorite.Core" version="$PackageVersion$" exclude="Build,Analyzers" />
+        <dependency id="Fluorite.Serializer" version="$PackageVersion$" exclude="Build,Analyzers" />
+        <dependency id="Fluorite.Transport" version="$PackageVersion$" exclude="Build,Analyzers" />
+        <dependency id="System.Threading.Tasks.Extensions" version="4.5.4" exclude="Build,Analyzers" />
+      </group>
+      <group targetFramework=".NETCoreApp2.1">
+        <dependency id="Fluorite.Build" version="$PackageVersion$" />
+        <dependency id="Fluorite.Core" version="$PackageVersion$" exclude="Build,Analyzers" />
+        <dependency id="Fluorite.Serializer" version="$PackageVersion$" exclude="Build,Analyzers" />
+        <dependency id="Fluorite.Transport" version="$PackageVersion$" exclude="Build,Analyzers" />
+        <dependency id="System.Threading.Tasks.Extensions" version="4.5.4" exclude="Build,Analyzers" />
+      </group>
+      <group targetFramework=".NETCoreApp3.0">
+        <dependency id="Fluorite.Build" version="$PackageVersion$" />
+        <dependency id="Fluorite.Core" version="$PackageVersion$" exclude="Build,Analyzers" />
+        <dependency id="Fluorite.Serializer" version="$PackageVersion$" exclude="Build,Analyzers" />
+        <dependency id="Fluorite.Transport" version="$PackageVersion$" exclude="Build,Analyzers" />
+        <dependency id="System.Threading.Tasks.Extensions" version="4.5.4" exclude="Build,Analyzers" />
+      </group>
+      <group targetFramework=".NETCoreApp3.1">
+        <dependency id="Fluorite.Build" version="$PackageVersion$" />
+        <dependency id="Fluorite.Core" version="$PackageVersion$" exclude="Build,Analyzers" />
+        <dependency id="Fluorite.Serializer" version="$PackageVersion$" exclude="Build,Analyzers" />
+        <dependency id="Fluorite.Transport" version="$PackageVersion$" exclude="Build,Analyzers" />
+        <dependency id="System.Threading.Tasks.Extensions" version="4.5.4" exclude="Build,Analyzers" />
+      </group>
+      <group targetFramework=".NETStandard2.0">
+        <dependency id="Fluorite.Build" version="$PackageVersion$" />
+        <dependency id="Fluorite.Core" version="$PackageVersion$" exclude="Build,Analyzers" />
+        <dependency id="Fluorite.Serializer" version="$PackageVersion$" exclude="Build,Analyzers" />
+        <dependency id="Fluorite.Transport" version="$PackageVersion$" exclude="Build,Analyzers" />
+        <dependency id="System.Threading.Tasks.Extensions" version="4.5.4" exclude="Build,Analyzers" />
+      </group>
+      <group targetFramework=".NETStandard2.1">
+        <dependency id="Fluorite.Build" version="$PackageVersion$" />
+        <dependency id="Fluorite.Core" version="$PackageVersion$" exclude="Build,Analyzers" />
+        <dependency id="Fluorite.Serializer" version="$PackageVersion$" exclude="Build,Analyzers" />
+        <dependency id="Fluorite.Transport" version="$PackageVersion$" exclude="Build,Analyzers" />
+        <dependency id="System.Threading.Tasks.Extensions" version="4.5.4" exclude="Build,Analyzers" />
+      </group>
+      <group targetFramework="net5.0">
+        <dependency id="Fluorite.Build" version="$PackageVersion$" />
+        <dependency id="Fluorite.Core" version="$PackageVersion$" exclude="Build,Analyzers" />
+        <dependency id="Fluorite.Serializer" version="$PackageVersion$" exclude="Build,Analyzers" />
+        <dependency id="Fluorite.Transport" version="$PackageVersion$" exclude="Build,Analyzers" />
+        <dependency id="System.Threading.Tasks.Extensions" version="4.5.4" exclude="Build,Analyzers" />
+      </group>
+    </dependencies>
+  </metadata>
+  <files>
+    <file src="..\Images\Fluorite.100.png" target="/" />
+    <file src="bin\$Configuration$\**\Fluorite.dll" target="lib" />
+    <file src="bin\$Configuration$\**\Fluorite.pdb" target="lib" />
+    <file src="bin\$Configuration$\**\Fluorite.xml" target="lib" />
+  </files>
+</package>
