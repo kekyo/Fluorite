@@ -35,7 +35,11 @@
       
   <PropertyGroup Condition="'$(MSBuildRuntimeType)' == 'Core'">
     <_FluoriteBuild_PlatformName Condition="('$(MicrosoftNETBuildTasksTFM)' == '') AND ('$(BundledNETCoreAppTargetFrameworkVersion)' == '')">netcoreapp2.0</_FluoriteBuild_PlatformName>
-    <_FluoriteBuild_PlatformName Condition="'$(MicrosoftNETBuildTasksTFM)' == ''">netcoreapp$(BundledNETCoreAppTargetFrameworkVersion)</_FluoriteBuild_PlatformName>
+    <_FluoriteBuild_PlatformName Condition="('$(MicrosoftNETBuildTasksTFM)' == '') AND ('$(BundledNETCoreAppTargetFrameworkVersion)' == '2.0')">netcoreapp2.0</_FluoriteBuild_PlatformName>
+    <_FluoriteBuild_PlatformName Condition="('$(MicrosoftNETBuildTasksTFM)' == '') AND ('$(BundledNETCoreAppTargetFrameworkVersion)' == '2.1')">netcoreapp2.1</_FluoriteBuild_PlatformName>
+    <_FluoriteBuild_PlatformName Condition="('$(MicrosoftNETBuildTasksTFM)' == '') AND ('$(BundledNETCoreAppTargetFrameworkVersion)' == '3.0')">netcoreapp3.0</_FluoriteBuild_PlatformName>
+    <_FluoriteBuild_PlatformName Condition="('$(MicrosoftNETBuildTasksTFM)' == '') AND ('$(BundledNETCoreAppTargetFrameworkVersion)' == '3.1')">netcoreapp3.1</_FluoriteBuild_PlatformName>
+    <_FluoriteBuild_PlatformName Condition="('$(MicrosoftNETBuildTasksTFM)' == '') AND ('$(BundledNETCoreAppTargetFrameworkVersion)' != '')">net$(BundledNETCoreAppTargetFrameworkVersion)</_FluoriteBuild_PlatformName>
     <_FluoriteBuild_PlatformName Condition="'$(MicrosoftNETBuildTasksTFM)' != ''">$(MicrosoftNETBuildTasksTFM)</_FluoriteBuild_PlatformName>
   </PropertyGroup>
     
