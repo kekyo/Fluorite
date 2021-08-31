@@ -70,6 +70,8 @@ namespace Fluorite
 
         private readonly MethodDefinition registerMethodT;
 
+        private readonly MethodDefinition markInitializedMethod;
+
         public StaticProxyGenerator(string[] referencesBasePath, string targetAssemblyPath, Action<LogLevels, string> message)
         {
             this.targetAssemblyPath = targetAssemblyPath;
@@ -120,6 +122,11 @@ namespace Fluorite
                 "Fluorite.Proxy.StaticProxyFactory")!;
             this.registerMethodT = staticProxyFactoryType.Methods.
                 First(m => m.Name.StartsWith("Register"));
+            
+            var proxyUtilitiesType = fluoriteCoreAssembly.MainModule.GetType(
+                "Fluorite.Internal.ProxyUtilities")!;
+            this.markInitializedMethod = proxyUtilitiesType.Methods.
+                First(m => m.Name == "MarkInitialized");
             
             // HACK: made safer extract AttributeUsageAttribute type reference.
             var attributeUsageAttribute =
@@ -230,12 +237,14 @@ namespace Fluorite
                     ToArray();
                 var proxyMethod = new MethodDefinition(
                     method.Name,
-                    MethodAttributes.Public,
+                    MethodAttributes.Private | MethodAttributes.Final | MethodAttributes.HideBySig | MethodAttributes.NewSlot | MethodAttributes.Virtual,
                     module.ImportReference(method.ReturnType));
                 foreach (var parameterType in proxyParameterTypes)
                 {
                     proxyMethod.Parameters.Add(new ParameterDefinition(parameterType));
                 }
+
+                proxyMethod.ImplAttributes = MethodImplAttributes.AggressiveInlining;
 
                 var ilProcessor = proxyMethod.Body.GetILProcessor();
 
@@ -269,6 +278,8 @@ namespace Fluorite
 
                 ilProcessor.Append(Instruction.Create(OpCodes.Ret));
 
+                proxyMethod.Overrides.Add(method);
+
                 proxyType.Methods.Add(proxyMethod);
             }
 
@@ -279,8 +290,8 @@ namespace Fluorite
 
         private (TypeDefinition attributeType, MethodDefinition generatedProxyAttributeConstructor) InjectGeneratedProxyAttributeType(
             ModuleDefinition module,
-            IReadOnlyList<InjectedProxy> injects,
-            IReadOnlyList<MethodDefinition> initializeMethods)
+            IReadOnlyList<MethodDefinition> nestedGeneratedProxyAttributeConstructors,
+            IReadOnlyList<InjectedProxy> injects)
         {
             var attributeType = new TypeDefinition(
                 $"Fluorite.Internal.{module.Assembly.Name.Name}",
@@ -324,11 +335,14 @@ namespace Fluorite
                 MethodAttributes.Family | MethodAttributes.Virtual,
                 module.ImportReference(this.typeSystem.Void));
             
-            var imilp = onInitializeMethod.Body.GetILProcessor();
+            var oimilp = onInitializeMethod.Body.GetILProcessor();
 
-            foreach (var im in initializeMethods)
+            foreach (var nestedGeneratedProxyAttributeConstructor in nestedGeneratedProxyAttributeConstructors)
             {
-                imilp.Append(Instruction.Create(OpCodes.Call, im));
+                oimilp.Append(Instruction.Create(OpCodes.Newobj,
+                    nestedGeneratedProxyAttributeConstructor));
+                oimilp.Append(Instruction.Create(OpCodes.Call,
+                    module.ImportReference(this.generatedProxyAttributeInitializeMethod)));
             }
 
             foreach (var injected in injects)
@@ -339,10 +353,10 @@ namespace Fluorite
                     module.ImportReference(injected.TargetType));
                 registerMethod.GenericArguments.Add(
                     module.ImportReference(injected.ProxyType));
-                imilp.Append(Instruction.Create(OpCodes.Call, registerMethod));
+                oimilp.Append(Instruction.Create(OpCodes.Call, registerMethod));
             }
 
-            imilp.Append(Instruction.Create(OpCodes.Ret));
+            oimilp.Append(Instruction.Create(OpCodes.Ret));
 
             attributeType.Methods.Add(onInitializeMethod);
  
@@ -384,6 +398,8 @@ namespace Fluorite
                 module.ImportReference(generatedProxyAttributeConstructor)));
             ilp.Append(Instruction.Create(OpCodes.Call,
                 module.ImportReference(this.generatedProxyAttributeInitializeMethod)));
+            ilp.Append(Instruction.Create(OpCodes.Call,
+                module.ImportReference(this.markInitializedMethod)));
             ilp.Append(Instruction.Create(OpCodes.Ret));
         }
 
@@ -409,13 +425,12 @@ namespace Fluorite
                     Where(td => td.IsInterface && td.Interfaces.Any(ii => ii.InterfaceType.FullName == this.iHostType.FullName)).
                     ToArray();
 
-                var initializeMethods = this.referenceAssemblies.
+                var nestedGeneratedProxyAttributeConstructors = this.referenceAssemblies.
                     Select(referenceAssembly => referenceAssembly.CustomAttributes.
                         Select(ca => ca.AttributeType.Resolve()).
                         FirstOrDefault(at => at.BaseType.FullName == "Fluorite.Internal.GeneratedProxyAttribute")!).
                     Where(at => at != null).
-                    Select(at => at.Methods.FirstOrDefault(m => m.IsPublic && m.IsStatic && (m.Name == "Initialize"))!).
-                    Where(m => m != null).
+                    Select(at => at.Methods.First(m => m.IsConstructor)).
                     ToArray();
 
                 var injects = new List<InjectedProxy>();
@@ -431,7 +446,7 @@ namespace Fluorite
                 }
 
                 var (attributeType, generatedProxyAttributeConstructor) = this.InjectGeneratedProxyAttributeType(
-                    targetAssembly.MainModule, injects, initializeMethods);
+                    targetAssembly.MainModule, nestedGeneratedProxyAttributeConstructors, injects);
                 this.InjectGeneratedProxyAttribute(targetAssembly, attributeType);
 
                 this.message(
