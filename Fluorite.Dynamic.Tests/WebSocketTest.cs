@@ -24,6 +24,7 @@ using System.Threading.Tasks;
 
 namespace Fluorite
 {
+#if !CITest
     [TestFixture]
     public sealed class WebSocketTest
     {
@@ -194,4 +195,5 @@ namespace Fluorite
             }
         }
     }
+#endif
 }

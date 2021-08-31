@@ -37,6 +37,6 @@ jobs:
       run: dotnet restore
     - name: Build
       run: dotnet build --configuration Release --no-restore
-#   - name: Test
-#     run: dotnet test --no-restore --verbosity normal
-#     timeout-minutes: 5
+    - name: Test
+      run: dotnet test --no-restore --verbosity normal -p:CITest=True
+      timeout-minutes: 5
