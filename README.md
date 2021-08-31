@@ -8,19 +8,19 @@ Fluorite - Simplest and fully-customizable RPC standalone infrastructure on .NET
 
 ## NuGet
 
-|Package|main|Description|
+|Package|main|devel|Description|
 |:--|:--|:--|
-|Fluorite|[![NuGet Fluorite](https://img.shields.io/nuget/v/Fluorite.svg?style=flat)](https://www.nuget.org/packages/Fluorite)|Meta-package (Provides automated generating static proxy)|
-|Fluorite.Dynamic|[![NuGet Fluorite.Dynamic](https://img.shields.io/nuget/v/Fluorite.Dynamic.svg?style=flat)](https://www.nuget.org/packages/Fluorite.Dynamic)|Meta-package (Provides automated generating dynamic proxy)|
+|Fluorite|[![NuGet Fluorite](https://img.shields.io/nuget/v/Fluorite.svg?style=flat)](https://www.nuget.org/packages/Fluorite)|[![MyGet Fluorite](https://img.shields.io/myget/fluorite/v/Fluorite.svg?style=flat&label=myget)](https://www.myget.org/feed/fluorite/package/nuget/Fluorite)|Meta-package (Provides automated generating static proxy)|
+|Fluorite.Dynamic|[![NuGet Fluorite.Dynamic](https://img.shields.io/nuget/v/Fluorite.Dynamic.svg?style=flat)](https://www.nuget.org/packages/Fluorite.Dynamic)|[![MyGet Fluorite.Dynamic](https://img.shields.io/myget/fluorite/v/Fluorite.Dynamic.svg?style=flat&label=myget)](https://www.myget.org/feed/fluorite/package/nuget/Fluorite.Dynamic)|Meta-package (Provides automated generating dynamic proxy)|
 
 ### Sub packages
 
-|Package|main|Description|
+|Package|main|devel|Description|
 |:--|:--|:--|
-|Fluorite.Core|[![NuGet Fluorite.Core](https://img.shields.io/nuget/v/Fluorite.Core.svg?style=flat)](https://www.nuget.org/packages/Fluorite.Core)|Independed core engine|
-|Fluorite.Serializer|[![NuGet Fluorite.Serializer](https://img.shields.io/nuget/v/Fluorite.Serializer.svg?style=flat)](https://www.nuget.org/packages/Fluorite.Serializer)|Default serializer implementation (Newtonsoft.Json)|
-|Fluorite.Transport|[![NuGet Fluorite.Transport](https://img.shields.io/nuget/v/Fluorite.Transport.svg?style=flat)](https://www.nuget.org/packages/Fluorite.Transport)|Default transport implementation (System.Net.WebSockets)|
-|Fluorite.Build|[![NuGet Fluorite.Build](https://img.shields.io/nuget/v/Fluorite.Build.svg?style=flat)](https://www.nuget.org/packages/Fluorite.Build)|Automated static proxy generator at building time|
+|Fluorite.Core|[![NuGet Fluorite.Core](https://img.shields.io/nuget/v/Fluorite.Core.svg?style=flat)](https://www.nuget.org/packages/Fluorite.Core)|[![MyGet Fluorite.Core](https://img.shields.io/myget/fluorite/v/Fluorite.Core.svg?style=flat&label=myget)](https://www.myget.org/feed/fluorite/package/nuget/Fluorite.Core)|Independed core engine|
+|Fluorite.Serializer|[![NuGet Fluorite.Serializer](https://img.shields.io/nuget/v/Fluorite.Serializer.svg?style=flat)](https://www.nuget.org/packages/Fluorite.Serializer)|[![MyGet Fluorite.Serializer](https://img.shields.io/myget/fluorite/v/Fluorite.Serializer.svg?style=flat&label=myget)](https://www.myget.org/feed/fluorite/package/nuget/Fluorite.Serializer)|Default serializer implementation (Newtonsoft.Json)|
+|Fluorite.Transport|[![NuGet Fluorite.Transport](https://img.shields.io/nuget/v/Fluorite.Transport.svg?style=flat)](https://www.nuget.org/packages/Fluorite.Transport)|[![MyGet Fluorite.Transport](https://img.shields.io/myget/fluorite/v/Fluorite.Transport.svg?style=flat&label=myget)](https://www.myget.org/feed/fluorite/package/nuget/Fluorite.Transport)|Default transport implementation (System.Net.WebSockets)|
+|Fluorite.Build|[![NuGet Fluorite.Build](https://img.shields.io/nuget/v/Fluorite.Build.svg?style=flat)](https://www.nuget.org/packages/Fluorite.Build)|[![MyGet Fluorite.Build](https://img.shields.io/myget/fluorite/v/Fluorite.Build.svg?style=flat&label=myget)](https://www.myget.org/feed/fluorite/package/nuget/Fluorite.Build)|Automated static proxy generator at building time|
 
 ## CI
 
