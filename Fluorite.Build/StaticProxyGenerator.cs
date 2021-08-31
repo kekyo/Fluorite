@@ -430,7 +430,8 @@ namespace Fluorite
                         Select(ca => ca.AttributeType.Resolve()).
                         FirstOrDefault(at => at.BaseType.FullName == "Fluorite.Internal.GeneratedProxyAttribute")!).
                     Where(at => at != null).
-                    Select(at => at.Methods.First(m => m.IsConstructor)).
+                    GroupBy(at => at.FullName).
+                    Select(g => g.First().Methods.First(m => m.IsConstructor)).
                     ToArray();
 
                 var injects = new List<InjectedProxy>();
