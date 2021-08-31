@@ -319,12 +319,12 @@ namespace Fluorite
             //////////////////////////////////////////////
             // OnInitialize method
             
-            var initializeMethod = new MethodDefinition(
+            var onInitializeMethod = new MethodDefinition(
                 "OnInitialize",
-                MethodAttributes.Public | MethodAttributes.Virtual,
+                MethodAttributes.Family | MethodAttributes.Virtual,
                 module.ImportReference(this.typeSystem.Void));
             
-            var imilp = initializeMethod.Body.GetILProcessor();
+            var imilp = onInitializeMethod.Body.GetILProcessor();
 
             foreach (var im in initializeMethods)
             {
@@ -344,7 +344,7 @@ namespace Fluorite
 
             imilp.Append(Instruction.Create(OpCodes.Ret));
 
-            attributeType.Methods.Add(initializeMethod);
+            attributeType.Methods.Add(onInitializeMethod);
  
             //////////////////////////////////////////////
             // Finished
