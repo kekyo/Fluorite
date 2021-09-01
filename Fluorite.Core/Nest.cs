@@ -24,6 +24,7 @@ using Fluorite.Transport;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -148,7 +149,8 @@ namespace Fluorite
 
             var requestIdentity = Guid.NewGuid();
 
-            var data = await this.serializer.SerializeAsync(requestIdentity, methodIdentity, args!);
+            var ms = new MemoryStream();
+            await this.serializer.SerializeAsync(ms, requestIdentity, methodIdentity, args!);
 
             var awaiter = new Awaiter<TResult>();
             lock (this.awaiters)
@@ -158,7 +160,7 @@ namespace Fluorite
 
             try
             {
-                await this.transport!.SendAsync(data).
+                await this.transport!.SendAsync(new ArraySegment<byte>(ms.ToArray())).
                     ConfigureAwait(false);
             }
             catch
@@ -234,15 +236,17 @@ namespace Fluorite
                     name = "Exception";
                 }
 
-                var resultData = await this.serializer.SerializeAsync(container.RequestIdentity, name, new[] { result });
-                await this.transport!.SendAsync(resultData).
+                var ms = new MemoryStream();
+                await this.serializer.SerializeAsync(ms, container.RequestIdentity, name, new[] { result });
+                await this.transport!.SendAsync(new ArraySegment<byte>(ms.ToArray())).
                     ConfigureAwait(false);
             }
             // Will ignore sprious (Already abandoned awaiter)
             else if ((container.MethodIdentity != "Result") && (container.MethodIdentity != "Exception"))
             {
-                var resultData = await this.serializer.SerializeAsync(container.RequestIdentity, "Exception", new[] { "Method not found." });
-                await this.transport!.SendAsync(resultData).
+                var ms = new MemoryStream();
+                await this.serializer.SerializeAsync(ms, container.RequestIdentity, "Exception", new[] { "Method not found." });
+                await this.transport!.SendAsync(new ArraySegment<byte>(ms.ToArray())).
                     ConfigureAwait(false);
             }
         }

@@ -18,6 +18,7 @@
 ////////////////////////////////////////////////////////////////////////////
 
 using System;
+using System.IO;
 using System.Threading.Tasks;
 
 namespace Fluorite.Serialization
@@ -26,7 +27,7 @@ namespace Fluorite.Serialization
     {
         string PayloadContentType { get; }
 
-        ValueTask<ArraySegment<byte>> SerializeAsync(Guid sessionIdentity, string methodIdentity, object payload);
+        ValueTask SerializeAsync(Stream writeTo, Guid sessionIdentity, string methodIdentity, object payload);
         ValueTask<IPayloadContainerView> DeserializeAsync(ArraySegment<byte> data);
     }
 }
