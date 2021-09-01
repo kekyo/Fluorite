@@ -63,7 +63,7 @@ namespace Fluorite.WebSockets
 
                 try
                 {
-                    await controller.RunAsync(this.OnReceived, shutdownTask).
+                    await controller.RunAsync(this.OnReceivedAsync, shutdownTask).
                         ConfigureAwait(false);
                 }
                 finally
@@ -215,15 +215,15 @@ namespace Fluorite.WebSockets
         {
             if (this.httpListener is { })
             {
-                Task[] completions;
                 lock (this.connections)
                 {
-                    completions = this.connections.Values.
-                        Select(controller => controller.SendAsync(data)).
-                        ToArray();
+                    foreach (var controller in this.connections.Values)
+                    {
+                        controller.SendAsynchronously(data);
+                    }
                 }
 
-                return new ValueTask(Task.WhenAll(completions));
+                return default;
             }
             else
             {

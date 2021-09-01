@@ -22,9 +22,12 @@ using System.Threading.Tasks;
 
 namespace Fluorite.Transport
 {
-    public interface ITransport :
-        IObservable<ArraySegment<byte>>
+    public interface ITransport
     {
+        void RegisterReceiver(Func<ArraySegment<byte>, ValueTask> receiver);
+
+        void UnregisterReceiver(Func<ArraySegment<byte>, ValueTask> receiver);
+
         void SetPayloadContentType(string contentType);
 
         ValueTask SendAsync(ArraySegment<byte> data);

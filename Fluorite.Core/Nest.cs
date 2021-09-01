@@ -30,6 +30,10 @@ using System.Threading.Tasks;
 
 namespace Fluorite
 {
+    /// <summary>
+    /// Fluorite Nest class.
+    /// </summary>
+    /// <remarks>It's core structure of Fluorite.</remarks>
     public sealed class Nest
     {
         private readonly ISerializer serializer;
@@ -39,7 +43,9 @@ namespace Fluorite
         private readonly Dictionary<Guid, Awaiter> awaiters = new();
 
         private ITransport? transport;
-        private IDisposable? disposer;
+
+        ///////////////////////////////////////////////////////////////////////
+        // Constructor
 
         internal Nest(NestSettings settings, IPeerProxyFactory factory)
         {
@@ -48,44 +54,41 @@ namespace Fluorite
             this.transport = settings.Transport;
 
             this.transport.SetPayloadContentType(this.serializer.PayloadContentType);
-            this.disposer = this.transport.Subscribe(new TransportObserver(this));
+            this.transport.RegisterReceiver(this.OnReceivedAsync);
         }
+
+        ///////////////////////////////////////////////////////////////////////
+        // Shutdown sequence
 
         public async ValueTask ShutdownAsync()
         {
-            if (this.disposer != null)
+            if (this.transport != null)
             {
                 lock (this.stubs)
                 {
                     this.stubs.Clear();
                 }
 
-                this.CancelAwaitings();
+                lock (this.awaiters)
+                {
+                    foreach (var entry in this.awaiters)
+                    {
+                        entry.Value.SetCanceled();
+                    }
 
-                this.disposer.Dispose();
-                this.disposer = null;
-            }
+                    this.awaiters.Clear();
+                }
 
-            if (this.transport != null)
-            {
                 await this.transport.ShutdownAsync().
                     ConfigureAwait(false);
+
+                this.transport.UnregisterReceiver(this.OnReceivedAsync);
                 this.transport = null;
             }
         }
 
-        private void CancelAwaitings()
-        {
-            lock (this.awaiters)
-            {
-                foreach (var entry in this.awaiters)
-                {
-                    entry.Value.SetCanceled();
-                }
-
-                this.awaiters.Clear();
-            }
-        }
+        ///////////////////////////////////////////////////////////////////////
+        // Register host object
 
         public void Register(IHost host) =>
             this.Register(host, SynchronizationContext.Current);
@@ -122,10 +125,23 @@ namespace Fluorite
             }
         }
 
+        ///////////////////////////////////////////////////////////////////////
+        // Proxy generator
+
         public TPeer GetPeer<TPeer>()
             where TPeer : class, IHost =>
             this.factory?.CreateInstance<TPeer>(this)!;
 
+        ///////////////////////////////////////////////////////////////////////
+        // RPC management
+ 
+        /// <summary>
+        /// Lower level entry point from proxy interface.
+        /// </summary>
+        /// <typeparam name="TResult">Result type</typeparam>
+        /// <param name="methodIdentity">Method (or status) identity</param>
+        /// <param name="args">Additional arguments</param>
+        /// <returns>Result value</returns>
         internal async ValueTask<TResult> InvokeAsync<TResult>(string methodIdentity, object[] args)
         {
             Debug.Assert(!string.IsNullOrWhiteSpace(methodIdentity));
@@ -160,6 +176,11 @@ namespace Fluorite
                 ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Received awaiter calling (on caller role).
+        /// </summary>
+        /// <param name="container">Received payload container</param>
+        /// <param name="awaiter">Awaiter</param>
         private static async ValueTask AcceptAwaiterAsync(
             IPayloadContainerView container, Awaiter awaiter)
         {
@@ -188,6 +209,10 @@ namespace Fluorite
             }
         }
 
+        /// <summary>
+        /// Received calling request (on callee role).
+        /// </summary>
+        /// <param name="container">Received payload container</param>
         private async ValueTask AcceptInvokingAsync(IPayloadContainerView container)
         {
             MethodStub? hostMethod = null;
@@ -227,7 +252,12 @@ namespace Fluorite
             }
         }
 
-        internal async ValueTask OnNextAsync(ArraySegment<byte> data)
+        /// <summary>
+        /// Arrived raw data at transport.
+        /// </summary>
+        /// <param name="data">Raw data</param>
+        /// <returns></returns>
+        internal async ValueTask OnReceivedAsync(ArraySegment<byte> data)
         {
             var container = await this.serializer.DeserializeAsync(data).
                 ConfigureAwait(false);
@@ -253,9 +283,12 @@ namespace Fluorite
             }
         }
 
-        internal void OnCompleted() =>
-            this.CancelAwaitings();
+        ///////////////////////////////////////////////////////////////////////
+        // Factory accessor
 
+        /// <summary>
+        /// Factory accessor.
+        /// </summary>
         public static readonly NestFactory Factory =
             new NestFactory();
     }

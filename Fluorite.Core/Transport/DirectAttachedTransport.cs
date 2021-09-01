@@ -45,11 +45,11 @@ namespace Fluorite.Transport
 
         public override ValueTask SendAsync(ArraySegment<byte> data)
         {
-            // Fire and forgot each request, because the request can send with no waiting on inter process.
+            // TODO: Fire and forgot each request, because the request can send with no waiting on inter process.
 #if NETSTANDARD1_3
-            Task.Run(() => this.peer!.OnReceived(data));
+            Task.Run(() => this.peer!.OnReceivedAsync(data));
 #else
-            ThreadPool.QueueUserWorkItem(_ => this.peer!.OnReceived(data));
+            ThreadPool.QueueUserWorkItem(_ => this.peer!.OnReceivedAsync(data));
 #endif
             return default;
         }

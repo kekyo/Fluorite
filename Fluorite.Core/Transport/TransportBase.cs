@@ -18,8 +18,7 @@
 ////////////////////////////////////////////////////////////////////////////
 
 using System;
-using System.Collections.Generic;
-using System.Diagnostics;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Fluorite.Transport
@@ -27,10 +26,26 @@ namespace Fluorite.Transport
     public abstract class TransportBase :
         ITransport
     {
-        private readonly List<IObserver<ArraySegment<byte>>> observers = new();
+        private Func<ArraySegment<byte>, ValueTask>? receiver;
 
         protected TransportBase()
         {
+        }
+
+        void ITransport.RegisterReceiver(Func<ArraySegment<byte>, ValueTask> receiver)
+        {
+            if (Interlocked.CompareExchange(ref this.receiver, receiver, null) != null)
+            {
+                throw new InvalidOperationException("Receiver already registered.");
+            }
+        }
+
+        void ITransport.UnregisterReceiver(Func<ArraySegment<byte>, ValueTask> receiver)
+        {
+            if (Interlocked.CompareExchange(ref this.receiver, null, receiver) == null)
+            {
+                throw new InvalidOperationException("It isn't registered.");
+            }
         }
 
         protected virtual void SetPayloadContentType(string contentType)
@@ -40,95 +55,20 @@ namespace Fluorite.Transport
         void ITransport.SetPayloadContentType(string contentType) =>
             this.SetPayloadContentType(contentType);
 
-        protected void OnReceived(ArraySegment<byte> data)
+        protected ValueTask OnReceivedAsync(ArraySegment<byte> data)
         {
-            lock (this.observers)
+            var receiver = this.receiver;
+            if (receiver == null)
             {
-                foreach (var observer in this.observers.ToArray())
-                {
-                    try
-                    {
-                        observer.OnNext(data);
-                    }
-                    catch (Exception ex)
-                    {
-                        Debug.WriteLine(ex);
-                    }
-                }
+                throw new InvalidOperationException("Receiver isn't registered.");
             }
-        }
 
-        protected void OnReceiveError(Exception ex)
-        {
-            lock (this.observers)
-            {
-                foreach (var observer in this.observers.ToArray())
-                {
-                    try
-                    {
-                        observer.OnError(ex);
-                    }
-                    catch (Exception ex2)
-                    {
-                        Debug.WriteLine(ex2);
-                    }
-                }
-            }
-        }
-
-        protected void OnReceiveFinished()
-        {
-            lock (this.observers)
-            {
-                foreach (var observer in this.observers.ToArray())
-                {
-                    try
-                    {
-                        observer.OnCompleted();
-                    }
-                    catch (Exception ex)
-                    {
-                        Debug.WriteLine(ex);
-                    }
-                }
-            }
+            return receiver(data);
         }
 
         public abstract ValueTask SendAsync(ArraySegment<byte> data);
 
         public virtual ValueTask ShutdownAsync() =>
             default;
-
-        public IDisposable Subscribe(IObserver<ArraySegment<byte>> observer)
-        {
-            lock (this.observers)
-            {
-                this.observers.Add(observer);
-                return new Disposer(this, observer);
-            }
-        }
-
-        private void InternalDispose(IObserver<ArraySegment<byte>> observer)
-        {
-            lock (this.observers)
-            {
-                this.observers.Remove(observer);
-            }
-        }
-
-        private sealed class Disposer : IDisposable
-        {
-            private readonly TransportBase parent;
-            private readonly IObserver<ArraySegment<byte>> observer;
-
-            public Disposer(TransportBase parent, IObserver<ArraySegment<byte>> observer)
-            {
-                this.parent = parent;
-                this.observer = observer;
-            }
-
-            public void Dispose() =>
-                this.parent.InternalDispose(this.observer);
-        }
     }
 }

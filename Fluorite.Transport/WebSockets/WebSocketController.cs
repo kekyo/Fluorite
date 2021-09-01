@@ -20,6 +20,7 @@
 using Fluorite.Internal;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Net.WebSockets;
 using System.Threading;
 using System.Threading.Tasks;
@@ -31,12 +32,10 @@ namespace Fluorite.WebSockets
         private struct SendData
         {
             public readonly ArraySegment<byte> Data;
-            public readonly TaskCompletionSource<bool> Completion;
 
             public SendData(ArraySegment<byte> data)
             {
                 this.Data = data;
-                this.Completion = new();
             }
         }
 
@@ -49,15 +48,12 @@ namespace Fluorite.WebSockets
             {
                 lock (this.queue)
                 {
-                    while (this.queue.Count >= 1)
-                    {
-                        this.queue.Dequeue().Completion.TrySetCanceled();
-                    }
+                    this.queue.Clear();
                     this.available.Reset();
                 }
             }
 
-            public Task SendAsync(ArraySegment<byte> data)
+            public void Enqueue(ArraySegment<byte> data)
             {
                 var sendData = new SendData(data);
                 lock (this.queue)
@@ -68,7 +64,6 @@ namespace Fluorite.WebSockets
                         this.available.Set();
                     }
                 }
-                return sendData.Completion.Task;
             }
 
             public async Task<SendData> DequeueAsync(CancellationToken token)
@@ -108,10 +103,13 @@ namespace Fluorite.WebSockets
         public void Dispose() =>
             this.sendQueue.Dispose();
 
-        public Task SendAsync(ArraySegment<byte> data) =>
-            this.sendQueue.SendAsync(data);
+        public void SendAsynchronously(ArraySegment<byte> data) =>
+            // Important: WebSocket couldn't multiple sending/receiving request at overlapped.
+            //   So will logical deadlock when requests multiple with awaiting.
+            //   WebSocket transport ignores awaiter, makes always fire-and-forget.
+            this.sendQueue.Enqueue(data);
 
-        public async Task RunAsync(Action<ArraySegment<byte>> action, Task shutdownTask)
+        public async Task RunAsync(Func<ArraySegment<byte>, ValueTask> action, Task shutdownTask)
         {
             var cts = new CancellationTokenSource();
             var buffer = new ExpandableBuffer(this.bufferElementSize);
@@ -137,16 +135,8 @@ namespace Fluorite.WebSockets
                     {
                         var sendData = await sendTask.
                             ConfigureAwait(false);
-                        try
-                        {
-                            await this.webSocket.SendAsync(sendData.Data, this.messageType, true, default).
-                                ConfigureAwait(false);
-                            sendData.Completion.TrySetResult(true);
-                        }
-                        catch (Exception ex)
-                        {
-                            sendData.Completion.TrySetException(ex);
-                        }
+                        await this.webSocket.SendAsync(sendData.Data, this.messageType, true, default).
+                            ConfigureAwait(false);
 
                         sendTask = sendQueue.DequeueAsync(cts.Token);
                     }
@@ -159,7 +149,8 @@ namespace Fluorite.WebSockets
                             buffer.Adjust(result.Count);
                             if (result.EndOfMessage)
                             {
-                                action(buffer.Extract());
+                                await action(buffer.Extract()).
+                                    ConfigureAwait(false);
                                 buffer = new ExpandableBuffer(this.bufferElementSize);
                             }
                             else

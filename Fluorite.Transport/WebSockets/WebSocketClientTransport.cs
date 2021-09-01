@@ -61,15 +61,12 @@ namespace Fluorite.WebSockets
                     try
                     {
                         var shutdownTask = this.shutdown!.Task;
-                        await this.controller.RunAsync(this.OnReceived, shutdownTask).
+                        await this.controller.RunAsync(this.OnReceivedAsync, shutdownTask).
                             ConfigureAwait(false);
-
-                        this.OnReceiveFinished();
                     }
                     catch (Exception ex)
                     {
                         Debug.WriteLine(ex);
-                        this.OnReceiveError(ex);
                     }
                     finally
                     {
@@ -141,7 +138,8 @@ namespace Fluorite.WebSockets
         {
             if (this.controller is { } controller)
             {
-                return new ValueTask(this.controller!.SendAsync(data));
+                this.controller!.SendAsynchronously(data);
+                return default;
             }
             else
             {
