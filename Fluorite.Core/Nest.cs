@@ -149,8 +149,7 @@ namespace Fluorite
 
             var sessionIdentity = Guid.NewGuid();
 
-            var data = await this.serializer.SerializeAsync(sessionIdentity, methodIdentity, args!).
-                ConfigureAwait(false);
+            var data = await this.serializer.SerializeAsync(sessionIdentity, methodIdentity, args!);
 
             var awaiter = new Awaiter<TResult>();
             lock (this.awaiters)
@@ -227,8 +226,7 @@ namespace Fluorite
                 string name;
                 try
                 {
-                    result = await hostMethod.InvokeAsync(container).
-                        ConfigureAwait(false);
+                    result = await hostMethod.InvokeAsync(container);
                     name = "Result";
                 }
                 catch (Exception ex)
@@ -237,16 +235,14 @@ namespace Fluorite
                     name = "Exception";
                 }
 
-                var resultData = await this.serializer.SerializeAsync(container.SessionIdentity, name, new[] { result }).
-                    ConfigureAwait(false);
+                var resultData = await this.serializer.SerializeAsync(container.SessionIdentity, name, new[] { result });
                 await this.transport!.SendAsync(resultData).
                     ConfigureAwait(false);
             }
             // Will ignore sprious (Already abandoned awaiter)
             else if ((container.MethodIdentity != "Result") && (container.MethodIdentity != "Exception"))
             {
-                var resultData = await this.serializer.SerializeAsync(container.SessionIdentity, "Exception", new[] { "Method not found." }).
-                    ConfigureAwait(false);
+                var resultData = await this.serializer.SerializeAsync(container.SessionIdentity, "Exception", new[] { "Method not found." });
                 await this.transport!.SendAsync(resultData).
                     ConfigureAwait(false);
             }
@@ -259,8 +255,7 @@ namespace Fluorite
         /// <returns></returns>
         internal async ValueTask OnReceivedAsync(ArraySegment<byte> data)
         {
-            var container = await this.serializer.DeserializeAsync(data).
-                ConfigureAwait(false);
+            var container = await this.serializer.DeserializeAsync(data);
 
             Awaiter? awaiter = null;
             lock (this.awaiters)

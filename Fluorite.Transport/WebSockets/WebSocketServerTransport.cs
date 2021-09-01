@@ -98,21 +98,17 @@ namespace Fluorite.WebSockets
                 var acceptWebSocketTask = httpContext.AcceptWebSocketAsync(null!);
                 var shutdownTask = this.shutdown!.Task;
 
-                var awakeTask = await Task.WhenAny(acceptWebSocketTask, shutdownTask).
-                    ConfigureAwait(false);
+                var awakeTask = await Task.WhenAny(acceptWebSocketTask, shutdownTask);
                 if (object.ReferenceEquals(awakeTask, shutdownTask))
                 {
-                    await shutdownTask.
-                        ConfigureAwait(false);
+                    await shutdownTask;
                     var _ = acceptWebSocketTask.ContinueWith(_ => { });    // ignoring sink
                     return;
                 }
 
-                var webSocketContext = await acceptWebSocketTask.
-                    ConfigureAwait(false);
+                var webSocketContext = await acceptWebSocketTask;
 
-                await this.PumpAsync(webSocketContext.WebSocket, shutdownTask).
-                    ConfigureAwait(false);
+                await this.PumpAsync(webSocketContext.WebSocket, shutdownTask);
             }
             catch (Exception ex)
             {
@@ -145,18 +141,15 @@ namespace Fluorite.WebSockets
 
                 while (true)
                 {
-                    var awakeTask = await Task.WhenAny(getContextTask, shutdownTask).
-                        ConfigureAwait(false);
+                    var awakeTask = await Task.WhenAny(getContextTask, shutdownTask);
                     if (object.ReferenceEquals(awakeTask, shutdownTask))
                     {
-                        await shutdownTask.
-                            ConfigureAwait(false);
+                        await shutdownTask;
                         var _ = getContextTask.ContinueWith(_ => { });    // ignoring sink
                         break;
                     }
 
-                    var httpContext = await getContextTask.
-                        ConfigureAwait(false);
+                    var httpContext = await getContextTask;
 
                     this.ConnectAsynchronously(httpContext);
 

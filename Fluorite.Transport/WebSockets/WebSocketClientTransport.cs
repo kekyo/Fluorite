@@ -61,8 +61,7 @@ namespace Fluorite.WebSockets
                     try
                     {
                         var shutdownTask = this.shutdown!.Task;
-                        await this.controller.RunAsync(this.OnReceivedAsync, shutdownTask).
-                            ConfigureAwait(false);
+                        await this.controller.RunAsync(this.OnReceivedAsync, shutdownTask);
                     }
                     catch (Exception ex)
                     {
@@ -86,11 +85,9 @@ namespace Fluorite.WebSockets
 
         public async ValueTask ConnectAsync(string serverAddress, int port, bool performSecureConnection)
         {
-            var entry = await Dns.GetHostEntryAsync(serverAddress).
-                ConfigureAwait(false);
+            var entry = await Dns.GetHostEntryAsync(serverAddress);
             await this.ConnectAsync(
-                CreateUrl(new IPEndPoint(entry.AddressList[0], port), performSecureConnection)).
-                ConfigureAwait(false);
+                CreateUrl(new IPEndPoint(entry.AddressList[0], port), performSecureConnection));
         }
 
         public ValueTask ConnectAsync(EndPoint serverEndPoint, bool performSecureConnection) =>
@@ -121,8 +118,7 @@ namespace Fluorite.WebSockets
 
             try
             {
-                await this.done!.Task.
-                    ConfigureAwait(false);
+                await this.done!.Task;
             }
             finally
             {

@@ -20,7 +20,6 @@
 using Fluorite.Internal;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Net.WebSockets;
 using System.Threading;
 using System.Threading.Tasks;
@@ -121,36 +120,30 @@ namespace Fluorite.WebSockets
             {
                 while (true)
                 {
-                    var awakeTask = await Task.WhenAny(shutdownTask, receiveTask, sendTask).
-                        ConfigureAwait(false);
+                    var awakeTask = await Task.WhenAny(shutdownTask, receiveTask, sendTask);
                     if (object.ReferenceEquals(awakeTask, shutdownTask))
                     {
-                        await shutdownTask.   // Make completion
-                            ConfigureAwait(false);
+                        await shutdownTask;   // Make completion
                         var _ = receiveTask.ContinueWith(_ => { });    // ignoring sink
                         var __ = sendTask.ContinueWith(_ => { });      // ignoring sink
                         break;
                     }
                     else if (object.ReferenceEquals(awakeTask, sendTask))
                     {
-                        var sendData = await sendTask.
-                            ConfigureAwait(false);
-                        await this.webSocket.SendAsync(sendData.Data, this.messageType, true, default).
-                            ConfigureAwait(false);
+                        var sendData = await sendTask;
+                        await this.webSocket.SendAsync(sendData.Data, this.messageType, true, default);
 
                         sendTask = sendQueue.DequeueAsync(cts.Token);
                     }
                     else
                     {
-                        var result = await receiveTask.
-                            ConfigureAwait(false);
+                        var result = await receiveTask;
                         if (result.MessageType == this.messageType)
                         {
                             buffer.Adjust(result.Count);
                             if (result.EndOfMessage)
                             {
-                                await action(buffer.Extract()).
-                                    ConfigureAwait(false);
+                                await action(buffer.Extract());
                                 buffer = new ExpandableBuffer(this.bufferElementSize);
                             }
                             else
