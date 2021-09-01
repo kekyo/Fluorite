@@ -18,6 +18,7 @@
 ////////////////////////////////////////////////////////////////////////////
 
 using System;
+using System.IO;
 using System.Threading.Tasks;
 
 namespace Fluorite.Transport
@@ -31,7 +32,7 @@ namespace Fluorite.Transport
         /// Initialize transport.
         /// </summary>
         /// <param name="receiver">Receiver calling when transport receive raw data</param>
-        void Initialize(Func<ArraySegment<byte>, ValueTask> receiver);
+        void Initialize(Func<Stream, ValueTask> receiver);
 
         /// <summary>
         /// Shutdown transport.

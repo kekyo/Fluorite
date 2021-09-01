@@ -20,6 +20,7 @@
 using Fluorite.Internal;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Net.WebSockets;
 using System.Threading;
 using System.Threading.Tasks;
@@ -97,7 +98,7 @@ namespace Fluorite.WebSockets
             //   WebSocket transport ignores awaiter, makes always fire-and-forget.
             this.sendQueue.Enqueue(data);
 
-        public async Task RunAsync(Func<ArraySegment<byte>, ValueTask> action, Task shutdownTask)
+        public async Task RunAsync(Func<Stream, ValueTask> action, Task shutdownTask)
         {
             var cts = new CancellationTokenSource();
             var buffer = new ExpandableBuffer(this.bufferElementSize);
@@ -132,7 +133,8 @@ namespace Fluorite.WebSockets
                             buffer.Adjust(result.Count);
                             if (result.EndOfMessage)
                             {
-                                await action(buffer.Extract());
+                                var data = buffer.Extract();
+                                await action(new MemoryStream(data.Array!, data.Offset, data.Count));
                                 buffer = new ExpandableBuffer(this.bufferElementSize);
                             }
                             else

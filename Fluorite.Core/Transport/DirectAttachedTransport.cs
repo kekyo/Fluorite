@@ -18,6 +18,7 @@
 ////////////////////////////////////////////////////////////////////////////
 
 using System;
+using System.IO;
 using System.Threading.Tasks;
 
 namespace Fluorite.Transport
@@ -43,7 +44,7 @@ namespace Fluorite.Transport
         }
 
         protected override ValueTask OnSendAsync(ArraySegment<byte> data) =>
-            this.peer!.OnReceivedAsync(data);
+            this.peer!.OnReceivedAsync(new MemoryStream(data.Array!, data.Offset, data.Count));
 
         public static DirectAttachedTransportPair Create()
         {

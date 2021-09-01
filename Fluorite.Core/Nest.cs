@@ -254,12 +254,10 @@ namespace Fluorite
         /// <summary>
         /// Arrived raw data at transport.
         /// </summary>
-        /// <param name="data">Raw data</param>
-        /// <returns></returns>
-        internal async ValueTask OnReceivedAsync(ArraySegment<byte> data)
+        /// <param name="readFrom">Raw data contained stream</param>
+        internal async ValueTask OnReceivedAsync(Stream readFrom)
         {
-            var ms = new MemoryStream(data.Array!, data.Offset, data.Count);
-            var container = await this.serializer.DeserializeAsync(ms);
+            var container = await this.serializer.DeserializeAsync(readFrom);
 
             Awaiter? awaiter = null;
             lock (this.awaiters)

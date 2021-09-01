@@ -19,6 +19,7 @@
 
 using System;
 using System.Diagnostics;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -30,7 +31,7 @@ namespace Fluorite.Transport
     public abstract class TransportBase :
         ITransport
     {
-        private Func<ArraySegment<byte>, ValueTask>? receiver;
+        private Func<Stream, ValueTask>? receiver;
 
         /// <summary>
         /// Constructor.
@@ -43,7 +44,7 @@ namespace Fluorite.Transport
         /// Initialize transport.
         /// </summary>
         /// <param name="receiver">Receiver calling when transport receive raw data</param>
-        void ITransport.Initialize(Func<ArraySegment<byte>, ValueTask> receiver)
+        void ITransport.Initialize(Func<Stream, ValueTask> receiver)
         {
             Debug.Assert(this.receiver == null);
             this.receiver = receiver;
@@ -88,8 +89,8 @@ namespace Fluorite.Transport
         /// <summary>
         /// Transfer received raw data.
         /// </summary>
-        /// <param name="data">Raw data</param>
-        protected ValueTask OnReceivedAsync(ArraySegment<byte> data)
+        /// <param name="readFrom">Raw data contained stream</param>
+        protected ValueTask OnReceivedAsync(Stream readFrom)
         {
             var receiver = this.receiver;
             if (receiver == null)
@@ -97,7 +98,7 @@ namespace Fluorite.Transport
                 throw new InvalidOperationException("Transport isn't initialized.");
             }
 
-            return receiver(data);
+            return receiver(readFrom);
         }
 
         /// <summary>
