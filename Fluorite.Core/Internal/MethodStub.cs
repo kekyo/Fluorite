@@ -22,7 +22,6 @@ using System;
 using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
-using System.Threading;
 using System.Threading.Tasks;
 
 namespace Fluorite.Internal
@@ -31,11 +30,10 @@ namespace Fluorite.Internal
     {
         private protected IHost? host;
         private protected MethodInfo? method;
-        private protected SynchronizationContext? synchContext;
 
         public abstract ValueTask<object> InvokeAsync(IPayloadContainerView container);
 
-        public static MethodStub Create(IHost host, MethodInfo method, SynchronizationContext? synchContext)
+        public static MethodStub Create(IHost host, MethodInfo method)
         {
             Debug.Assert(method.ReturnType.IsValueType());
             Debug.Assert(method.ReturnType.IsGenericType());
@@ -49,7 +47,6 @@ namespace Fluorite.Internal
             
             stub.host = host;
             stub.method = method;
-            stub.synchContext = synchContext;
 
             return stub;
         }
@@ -65,36 +62,10 @@ namespace Fluorite.Internal
             // TODO: improve
             var args = await Task.WhenAll(
                 this.method!.GetParameters().
-                    Select(p => container.DeserializeDataAsync(p.Position, p.ParameterType).AsTask())).
-                ConfigureAwait(false);
+                    Select(p => container.DeserializeDataAsync(p.Position, p.ParameterType).AsTask()));
 
-            if (this.synchContext != null)
-            {
-                var tcs = new TaskCompletionSource<object>();
-
-                this.synchContext.Post(async _ =>
-                {
-                    try
-                    {
-                        var result = (await ((ValueTask<TResult>)this.method.Invoke(this.host!, args)!).
-                            ConfigureAwait(false))!;
-                        tcs.TrySetResult(result);
-                    }
-                    catch (Exception ex)
-                    {
-                        tcs.TrySetException(ex);
-                    }
-                },
-                null);
-
-                return await tcs.Task.
-                    ConfigureAwait(false);
-            }
-            else
-            {
-                return (await ((ValueTask<TResult>)this.method.Invoke(this.host!, args)!).
-                    ConfigureAwait(false))!;
-            }
+            return (await ((ValueTask<TResult>)this.method.Invoke(this.host!, args)!).
+                ConfigureAwait(false))!;
         }
     }
 }
