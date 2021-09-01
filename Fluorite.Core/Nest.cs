@@ -258,7 +258,8 @@ namespace Fluorite
         /// <returns></returns>
         internal async ValueTask OnReceivedAsync(ArraySegment<byte> data)
         {
-            var container = await this.serializer.DeserializeAsync(data);
+            var ms = new MemoryStream(data.Array!, data.Offset, data.Count);
+            var container = await this.serializer.DeserializeAsync(ms);
 
             Awaiter? awaiter = null;
             lock (this.awaiters)

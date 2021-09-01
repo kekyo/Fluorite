@@ -20,7 +20,6 @@
 using Fluorite.Serialization;
 using System;
 using System.IO;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace Fluorite.Json
@@ -48,11 +47,14 @@ namespace Fluorite.Json
                 ConfigureAwait(false);
         }
 
-        public ValueTask<IPayloadContainerView> DeserializeAsync(ArraySegment<byte> data)
+        public async ValueTask<IPayloadContainerView> DeserializeAsync(Stream readFrom)
         {
-            var jsonString = Encoding.UTF8.GetString(data.Array!, data.Offset, data.Count);
-            var container = Newtonsoft.Json.JsonConvert.DeserializeObject<JsonContainer>(jsonString);
-            return new ValueTask<IPayloadContainerView>(container);
+            var tr = new StreamReader(readFrom);
+            var jr = new Newtonsoft.Json.JsonTextReader(tr);
+
+            var jtoken = await Newtonsoft.Json.Linq.JToken.ReadFromAsync(jr).
+                ConfigureAwait(false);
+            return jtoken.ToObject<JsonContainer>()!;
         }
 
         public static readonly JsonSerializer Instance =
