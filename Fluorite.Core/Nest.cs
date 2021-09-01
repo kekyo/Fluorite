@@ -54,7 +54,7 @@ namespace Fluorite
             this.transport = settings.Transport;
 
             this.transport.SetPayloadContentType(this.serializer.PayloadContentType);
-            this.transport.RegisterReceiver(this.OnReceivedAsync);
+            this.transport.Initialize(this.OnReceivedAsync);
         }
 
         ///////////////////////////////////////////////////////////////////////
@@ -81,8 +81,6 @@ namespace Fluorite
 
                 await this.transport.ShutdownAsync().
                     ConfigureAwait(false);
-
-                this.transport.UnregisterReceiver(this.OnReceivedAsync);
                 this.transport = null;
             }
         }

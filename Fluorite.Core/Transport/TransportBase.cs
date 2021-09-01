@@ -18,57 +18,99 @@
 ////////////////////////////////////////////////////////////////////////////
 
 using System;
+using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 
 namespace Fluorite.Transport
 {
+    /// <summary>
+    /// Base transport implementation for useful features.
+    /// </summary>
     public abstract class TransportBase :
         ITransport
     {
         private Func<ArraySegment<byte>, ValueTask>? receiver;
 
+        /// <summary>
+        /// Constructor.
+        /// </summary>
         protected TransportBase()
         {
         }
 
-        void ITransport.RegisterReceiver(Func<ArraySegment<byte>, ValueTask> receiver)
+        /// <summary>
+        /// Initialize transport.
+        /// </summary>
+        /// <param name="receiver">Receiver calling when transport receive raw data</param>
+        void ITransport.Initialize(Func<ArraySegment<byte>, ValueTask> receiver)
         {
-            if (Interlocked.CompareExchange(ref this.receiver, receiver, null) != null)
+            Debug.Assert(this.receiver == null);
+            this.receiver = receiver;
+        }
+
+        /// <summary>
+        /// Calling when shutdown sequence.
+        /// </summary>
+        protected virtual ValueTask OnShutdownAsync() =>
+            default;
+
+        /// <summary>
+        /// Shutdown transport.
+        /// </summary>
+        ValueTask ITransport.ShutdownAsync()
+        {
+            if (Interlocked.CompareExchange(ref this.receiver, null, this.receiver) != null)
             {
-                throw new InvalidOperationException("Receiver already registered.");
+                return this.OnShutdownAsync();
+            }
+            else
+            {
+                return default;
             }
         }
 
-        void ITransport.UnregisterReceiver(Func<ArraySegment<byte>, ValueTask> receiver)
-        {
-            if (Interlocked.CompareExchange(ref this.receiver, null, receiver) == null)
-            {
-                throw new InvalidOperationException("It isn't registered.");
-            }
-        }
-
-        protected virtual void SetPayloadContentType(string contentType)
+        /// <summary>
+        /// Calling when set payload content type.
+        /// </summary>
+        /// <param name="contentType">HTTP content type like string ('application/json', 'application/octet-stream' and etc...)</param>
+        protected virtual void OnSetPayloadContentType(string contentType)
         {
         }
 
+        /// <summary>
+        /// Set transport payload content type.
+        /// </summary>
+        /// <param name="contentType">HTTP content type like string ('application/json', 'application/octet-stream' and etc...)</param>
         void ITransport.SetPayloadContentType(string contentType) =>
-            this.SetPayloadContentType(contentType);
+            this.OnSetPayloadContentType(contentType);
 
+        /// <summary>
+        /// Transfer received raw data.
+        /// </summary>
+        /// <param name="data">Raw data</param>
         protected ValueTask OnReceivedAsync(ArraySegment<byte> data)
         {
             var receiver = this.receiver;
             if (receiver == null)
             {
-                throw new InvalidOperationException("Receiver isn't registered.");
+                throw new InvalidOperationException("Transport isn't initialized.");
             }
 
             return receiver(data);
         }
 
-        public abstract ValueTask SendAsync(ArraySegment<byte> data);
+        /// <summary>
+        /// Calling when send peer with raw data.
+        /// </summary>
+        /// <param name="data">Raw data</param>
+        protected abstract ValueTask OnSendAsync(ArraySegment<byte> data);
 
-        public virtual ValueTask ShutdownAsync() =>
-            default;
+        /// <summary>
+        /// Send peer with raw data.
+        /// </summary>
+        /// <param name="data">Raw data</param>
+        ValueTask ITransport.SendAsync(ArraySegment<byte> data) =>
+            this.OnSendAsync(data);
     }
 }

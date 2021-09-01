@@ -42,7 +42,7 @@ namespace Fluorite.Transport
         {
         }
 
-        public override ValueTask SendAsync(ArraySegment<byte> data) =>
+        protected override ValueTask OnSendAsync(ArraySegment<byte> data) =>
             this.peer!.OnReceivedAsync(data);
 
         public static DirectAttachedTransportPair Create()

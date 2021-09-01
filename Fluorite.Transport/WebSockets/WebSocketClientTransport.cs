@@ -42,7 +42,7 @@ namespace Fluorite.WebSockets
         {
         }
 
-        protected override void SetPayloadContentType(string contentType) =>
+        protected override void OnSetPayloadContentType(string contentType) =>
             this.messageType = (contentType == "application/octet-stream") ?
                 WebSocketMessageType.Binary :
                 WebSocketMessageType.Text;
@@ -108,7 +108,7 @@ namespace Fluorite.WebSockets
             this.ProceedReceivingAsynchronously();
         }
 
-        public override async ValueTask ShutdownAsync()
+        protected override async ValueTask OnShutdownAsync()
         {
             Debug.Assert(this.webSocket != null);
             Debug.Assert(this.shutdown != null);
@@ -130,7 +130,7 @@ namespace Fluorite.WebSockets
             }
         }
 
-        public override ValueTask SendAsync(ArraySegment<byte> data)
+        protected override ValueTask OnSendAsync(ArraySegment<byte> data)
         {
             if (this.controller is { } controller)
             {

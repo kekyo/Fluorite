@@ -21,7 +21,6 @@ using Fluorite.Transport;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
 using System.Net;
 using System.Net.WebSockets;
 using System.Runtime.CompilerServices;
@@ -187,7 +186,7 @@ namespace Fluorite.WebSockets
             this.ListenAsynchronously();
         }
 
-        public override async ValueTask ShutdownAsync()
+        protected override async ValueTask OnShutdownAsync()
         {
             Debug.Assert(this.httpListener != null);
             Debug.Assert(this.shutdown != null);
@@ -204,7 +203,7 @@ namespace Fluorite.WebSockets
             this.done = null;
         }
 
-        public override ValueTask SendAsync(ArraySegment<byte> data)
+        protected override ValueTask OnSendAsync(ArraySegment<byte> data)
         {
             if (this.httpListener is { })
             {
