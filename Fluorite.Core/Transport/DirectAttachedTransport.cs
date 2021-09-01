@@ -18,7 +18,6 @@
 ////////////////////////////////////////////////////////////////////////////
 
 using System;
-using System.Threading;
 using System.Threading.Tasks;
 
 namespace Fluorite.Transport
@@ -43,16 +42,8 @@ namespace Fluorite.Transport
         {
         }
 
-        public override ValueTask SendAsync(ArraySegment<byte> data)
-        {
-            // TODO: Fire and forgot each request, because the request can send with no waiting on inter process.
-#if NETSTANDARD1_3
-            Task.Run(() => this.peer!.OnReceivedAsync(data));
-#else
-            ThreadPool.QueueUserWorkItem(_ => this.peer!.OnReceivedAsync(data));
-#endif
-            return default;
-        }
+        public override ValueTask SendAsync(ArraySegment<byte> data) =>
+            this.peer!.OnReceivedAsync(data);
 
         public static DirectAttachedTransportPair Create()
         {
