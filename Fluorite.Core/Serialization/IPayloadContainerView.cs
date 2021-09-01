@@ -24,7 +24,7 @@ namespace Fluorite.Serialization
 {
     public interface IPayloadContainerView
     {
-        Guid SessionIdentity { get; }
+        Guid RequestIdentity { get; }
 
         string MethodIdentity { get; }
 

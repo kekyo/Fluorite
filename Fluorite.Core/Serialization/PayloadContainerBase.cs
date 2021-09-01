@@ -31,21 +31,21 @@ namespace Fluorite.Serialization
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         protected PayloadContainerBase()
         {
-            this.SessionIdentity = default!;
+            this.RequestIdentity = default!;
             this.MethodIdentity = default!;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        protected PayloadContainerBase(Guid identity, string name)
+        protected PayloadContainerBase(Guid requestIdentity, string name)
         {
-            this.SessionIdentity = identity.ToString("N");
+            this.RequestIdentity = requestIdentity.ToString("N");
             this.MethodIdentity = name;
         }
 
-        public string SessionIdentity { get; set; }
+        public string RequestIdentity { get; set; }
 
-        Guid IPayloadContainerView.SessionIdentity =>
-            new Guid(this.SessionIdentity);
+        Guid IPayloadContainerView.RequestIdentity =>
+            new Guid(this.RequestIdentity);
 
         public string MethodIdentity { get; set; }
 
@@ -54,6 +54,6 @@ namespace Fluorite.Serialization
         public abstract ValueTask<object?> DeserializeDataAsync(int index, Type type);
 
         public override string ToString() =>
-            $"{this.SessionIdentity}: {this.MethodIdentity}";
+            $"{this.RequestIdentity}: {this.MethodIdentity}";
     }
 }

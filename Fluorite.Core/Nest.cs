@@ -147,14 +147,14 @@ namespace Fluorite
             Debug.Assert(!string.IsNullOrWhiteSpace(methodIdentity));
             Debug.Assert(args != null);
 
-            var sessionIdentity = Guid.NewGuid();
+            var requestIdentity = Guid.NewGuid();
 
-            var data = await this.serializer.SerializeAsync(sessionIdentity, methodIdentity, args!);
+            var data = await this.serializer.SerializeAsync(requestIdentity, methodIdentity, args!);
 
             var awaiter = new Awaiter<TResult>();
             lock (this.awaiters)
             {
-                this.awaiters.Add(sessionIdentity, awaiter);
+                this.awaiters.Add(requestIdentity, awaiter);
             }
 
             try
@@ -166,7 +166,7 @@ namespace Fluorite
             {
                 lock (this.awaiters)
                 {
-                    this.awaiters.Remove(sessionIdentity);
+                    this.awaiters.Remove(requestIdentity);
                 }
                 throw;
             }
@@ -235,14 +235,14 @@ namespace Fluorite
                     name = "Exception";
                 }
 
-                var resultData = await this.serializer.SerializeAsync(container.SessionIdentity, name, new[] { result });
+                var resultData = await this.serializer.SerializeAsync(container.RequestIdentity, name, new[] { result });
                 await this.transport!.SendAsync(resultData).
                     ConfigureAwait(false);
             }
             // Will ignore sprious (Already abandoned awaiter)
             else if ((container.MethodIdentity != "Result") && (container.MethodIdentity != "Exception"))
             {
-                var resultData = await this.serializer.SerializeAsync(container.SessionIdentity, "Exception", new[] { "Method not found." });
+                var resultData = await this.serializer.SerializeAsync(container.RequestIdentity, "Exception", new[] { "Method not found." });
                 await this.transport!.SendAsync(resultData).
                     ConfigureAwait(false);
             }
@@ -260,9 +260,9 @@ namespace Fluorite
             Awaiter? awaiter = null;
             lock (this.awaiters)
             {
-                if (this.awaiters.TryGetValue(container.SessionIdentity, out awaiter))
+                if (this.awaiters.TryGetValue(container.RequestIdentity, out awaiter))
                 {
-                    this.awaiters.Remove(container.SessionIdentity);
+                    this.awaiters.Remove(container.RequestIdentity);
                 }
             }
 

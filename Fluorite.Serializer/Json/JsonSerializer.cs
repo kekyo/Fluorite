@@ -33,9 +33,9 @@ namespace Fluorite.Json
         public string PayloadContentType =>
             "application/json";
 
-        public ValueTask<ArraySegment<byte>> SerializeAsync(Guid sessionIdentity, string methodIdentity, object payload)
+        public ValueTask<ArraySegment<byte>> SerializeAsync(Guid requestIdentity, string methodIdentity, object payload)
         {
-            var container = new JsonContainer(sessionIdentity, methodIdentity, payload);
+            var container = new JsonContainer(requestIdentity, methodIdentity, payload);
             var jsonString = Newtonsoft.Json.JsonConvert.SerializeObject(container);
             var data = Encoding.UTF8.GetBytes(jsonString);
             return new ValueTask<ArraySegment<byte>>(new ArraySegment<byte>(data));

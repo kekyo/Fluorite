@@ -32,8 +32,8 @@ namespace Fluorite.Json
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public JsonContainer(Guid sessionIdentity, string methodIdentity, object payload) :
-            base(sessionIdentity, methodIdentity) =>
+        public JsonContainer(Guid requestIdentity, string methodIdentity, object payload) :
+            base(requestIdentity, methodIdentity) =>
             this.Payload = payload;
 
         public object? Payload { get; set; }
