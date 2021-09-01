@@ -90,7 +90,7 @@ namespace Fluorite
         ///////////////////////////////////////////////////////////////////////
         // Register host object
 
-        public void Register(IHost host)
+        public void Register(IHost host, SynchronizationContext? synchContext)
         {
             lock (this.stubs)
             {
@@ -100,11 +100,15 @@ namespace Fluorite
                     foreach (var method in type.GetMethods())
                     {
                         var identity = ProxyUtilities.GetMethodIdentity(type, method.Name);
-                        this.stubs.Add(identity, MethodStub.Create(host, method));
+                        this.stubs.Add(identity, MethodStub.Create(host, method, synchContext));
                     }
                 }
             }
         }
+
+        public void Register(IHost host) =>
+            this.Register(host, SynchronizationContext.Current);
+
 
         public void Unregister(IHost host)
         {
