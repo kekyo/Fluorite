@@ -17,6 +17,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////
 
+using Fluorite.Internal;
 using Fluorite.Transport;
 using System;
 using System.Collections.Generic;
@@ -101,7 +102,7 @@ namespace Fluorite.WebSockets
                 if (object.ReferenceEquals(awakeTask, shutdownTask))
                 {
                     await shutdownTask;
-                    var _ = acceptWebSocketTask.ContinueWith(_ => { });    // ignoring sink
+                    acceptWebSocketTask.Discard();
                     return;
                 }
 
@@ -144,7 +145,7 @@ namespace Fluorite.WebSockets
                     if (object.ReferenceEquals(awakeTask, shutdownTask))
                     {
                         await shutdownTask;
-                        var _ = getContextTask.ContinueWith(_ => { });    // ignoring sink
+                        getContextTask.Discard();
                         break;
                     }
 

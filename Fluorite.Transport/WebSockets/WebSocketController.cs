@@ -98,12 +98,12 @@ namespace Fluorite.WebSockets
             //   WebSocket transport ignores awaiter, makes always fire-and-forget.
             this.sendQueue.Enqueue(data);
 
-        public async Task RunAsync(Func<Stream, ValueTask> action, Task shutdownTask)
+        public async ValueTask RunAsync(Func<Stream, ValueTask> action, Task shutdownTask)
         {
             var cts = new CancellationTokenSource();
-            var buffer = new ExpandableBuffer(this.bufferElementSize);
+            var buffer = new ExpandableBufferStream(this.bufferElementSize);
 
-            var receiveTask = this.webSocket.ReceiveAsync(buffer, cts.Token);
+            var receiveTask = this.webSocket.ReceiveAsync(buffer.GetPartialBuffer(), cts.Token);
             var sendTask = sendQueue.DequeueAsync(cts.Token);
 
             try
@@ -114,8 +114,9 @@ namespace Fluorite.WebSockets
                     if (object.ReferenceEquals(awakeTask, shutdownTask))
                     {
                         await shutdownTask;   // Make completion
-                        var _ = receiveTask.ContinueWith(_ => { });    // ignoring sink
-                        var __ = sendTask.ContinueWith(_ => { });      // ignoring sink
+
+                        receiveTask.Discard();
+                        sendTask.Discard();
                         break;
                     }
                     else if (object.ReferenceEquals(awakeTask, sendTask))
@@ -130,43 +131,42 @@ namespace Fluorite.WebSockets
                         var result = await receiveTask;
                         if (result.MessageType == this.messageType)
                         {
-                            buffer.Adjust(result.Count);
+                            buffer.CommitPartialBuffer(result.Count);
+
                             if (result.EndOfMessage)
                             {
-                                var data = buffer.Extract();
-                                await action(new MemoryStream(data.Array!, data.Offset, data.Count));
-                                buffer = new ExpandableBuffer(this.bufferElementSize);
-                            }
-                            else
-                            {
-                                buffer.Next();
+                                buffer.ReadyToRead();
+
+                                await action(buffer);
+
+                                buffer = new ExpandableBufferStream(this.bufferElementSize);
                             }
                         }
 
                         if (result.CloseStatus != default)
                         {
-                            var _ = sendTask.ContinueWith(_ => { });        // ignoring sink
-                            var __ = shutdownTask.ContinueWith(_ => { });   // ignoring sink
+                            sendTask.Discard();
+                            shutdownTask.Discard();
                             break;
                         }
 
-                        receiveTask = this.webSocket.ReceiveAsync(buffer, cts.Token);
+                        receiveTask = this.webSocket.ReceiveAsync(buffer.GetPartialBuffer(), cts.Token);
                     }
+                }
+
+                try
+                {
+                    await this.webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "", default).
+                        ConfigureAwait(false);
+                }
+                catch
+                {
+                    // Ignore.
                 }
             }
             finally
             {
                 cts.Cancel();
-            }
-
-            try
-            {
-                await this.webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "", default).
-                    ConfigureAwait(false);
-            }
-            catch
-            {
-                // Ignore.
             }
         }
     }
