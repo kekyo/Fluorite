@@ -28,19 +28,9 @@ namespace Fluorite.WebSockets
 {
     internal sealed class WebSocketController : IDisposable
     {
-        private struct SendData
-        {
-            public readonly ArraySegment<byte> Data;
-
-            public SendData(ArraySegment<byte> data)
-            {
-                this.Data = data;
-            }
-        }
-
         private sealed class SendQueue : IDisposable
         {
-            private readonly Queue<SendData> queue = new();
+            private readonly Queue<ArraySegment<byte>> queue = new();
             private readonly AsyncManualResetEvent available = new();
 
             public void Dispose()
@@ -54,10 +44,9 @@ namespace Fluorite.WebSockets
 
             public void Enqueue(ArraySegment<byte> data)
             {
-                var sendData = new SendData(data);
                 lock (this.queue)
                 {
-                    this.queue.Enqueue(sendData);
+                    this.queue.Enqueue(data);
                     if (this.queue.Count == 1)
                     {
                         this.available.Set();
@@ -65,7 +54,7 @@ namespace Fluorite.WebSockets
                 }
             }
 
-            public async Task<SendData> DequeueAsync(CancellationToken token)
+            public async Task<ArraySegment<byte>> DequeueAsync(CancellationToken token)
             {
                 while (true)
                 {
@@ -130,8 +119,8 @@ namespace Fluorite.WebSockets
                     }
                     else if (object.ReferenceEquals(awakeTask, sendTask))
                     {
-                        var sendData = await sendTask;
-                        await this.webSocket.SendAsync(sendData.Data, this.messageType, true, default);
+                        var data = await sendTask;
+                        await this.webSocket.SendAsync(data, this.messageType, true, default);
 
                         sendTask = sendQueue.DequeueAsync(cts.Token);
                     }
