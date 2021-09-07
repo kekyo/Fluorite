@@ -23,37 +23,70 @@ using System.Threading.Tasks;
 
 namespace Fluorite.Serialization
 {
+    /// <summary>
+    /// Multi purpose standard payload container base class.
+    /// </summary>
 #if !NETSTANDARD1_3
     [Serializable]
 #endif
     public abstract class PayloadContainerBase : IPayloadContainerView
     {
+        /// <summary>
+        /// Constructor.
+        /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         protected PayloadContainerBase()
         {
-            this.SessionIdentity = default!;
+            this.RequestIdentity = default!;
             this.MethodIdentity = default!;
         }
 
+        /// <summary>
+        /// Constructor.
+        /// </summary>
+        /// <param name="requestIdentity">Request identity</param>
+        /// <param name="methodIdentity">Method identity</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        protected PayloadContainerBase(Guid identity, string name)
+        protected PayloadContainerBase(Guid requestIdentity, string methodIdentity)
         {
-            this.SessionIdentity = identity.ToString("N");
-            this.MethodIdentity = name;
+            this.RequestIdentity = requestIdentity.ToString("N");
+            this.MethodIdentity = methodIdentity;
         }
 
-        public string SessionIdentity { get; set; }
+        /// <summary>
+        /// Request identity.
+        /// </summary>
+        public string RequestIdentity { get; set; }
 
-        Guid IPayloadContainerView.SessionIdentity =>
-            new Guid(this.SessionIdentity);
+        /// <summary>
+        /// Request identity.
+        /// </summary>
+        Guid IPayloadContainerView.RequestIdentity =>
+            new Guid(this.RequestIdentity);
 
+        /// <summary>
+        /// Method identity.
+        /// </summary>
         public string MethodIdentity { get; set; }
 
-        public abstract int DataCount { get; }
+        /// <summary>
+        /// Body data count.
+        /// </summary>
+        public abstract int BodyCount { get; }
 
-        public abstract ValueTask<object?> DeserializeDataAsync(int index, Type type);
+        /// <summary>
+        /// Deserialize a body data.
+        /// </summary>
+        /// <param name="index">Body index</param>
+        /// <param name="type">Target type</param>
+        /// <returns>Deserialized instance</returns>
+        public abstract ValueTask<object?> DeserializeBodyAsync(int index, Type type);
 
+        /// <summary>
+        /// Get a string reflect this instance.
+        /// </summary>
+        /// <returns>String</returns>
         public override string ToString() =>
-            $"{this.SessionIdentity}: {this.MethodIdentity}";
+            $"{this.RequestIdentity}: {this.MethodIdentity}";
     }
 }

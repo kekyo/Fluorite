@@ -22,18 +22,33 @@ using System.Runtime.CompilerServices;
 
 namespace Fluorite.Proxy
 {
+    /// <summary>
+    /// Dynamic (runtime) transparent proxy factory class.
+    /// </summary>
     public sealed class DynamicProxyFactory :
         IPeerProxyFactory
     {
+        /// <summary>
+        /// Constructor.
+        /// </summary>
         private DynamicProxyFactory()
         {
         }
 
+        /// <summary>
+        /// Create transparent proxy instance.
+        /// </summary>
+        /// <typeparam name="TPeer">Exposed interface type</typeparam>
+        /// <param name="nest">Nest instance</param>
+        /// <returns>Proxy instance</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public TPeer CreateInstance<TPeer>(Nest nest)
             where TPeer : class, IHost =>
             InternalDynamicProxyFactory<TPeer>.CreateInstance(nest);
 
+        /// <summary>
+        /// Dynamic transparent proxy factory instance.
+        /// </summary>
         public static readonly DynamicProxyFactory Instance =
             new DynamicProxyFactory();
     }

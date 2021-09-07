@@ -19,8 +19,14 @@
 
 namespace Fluorite
 {
+    /// <summary>
+    /// Fluorite factory instance class.
+    /// </summary>
     public sealed class NestFactory
     {
+        /// <summary>
+        /// Constructor.
+        /// </summary>
         internal NestFactory()
         {
         }

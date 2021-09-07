@@ -17,11 +17,14 @@
 //
 ////////////////////////////////////////////////////////////////////////////
 
+using Fluorite.Internal;
+using Fluorite.Transport;
 using System;
-using System.Threading;
+using System.Diagnostics;
+using System.IO;
 using System.Threading.Tasks;
 
-namespace Fluorite.Transport
+namespace Fluorite.Direct
 {
     public struct DirectAttachedTransportPair
     {
@@ -43,15 +46,29 @@ namespace Fluorite.Transport
         {
         }
 
-        public override ValueTask SendAsync(ArraySegment<byte> data)
+        /// <summary>
+        /// Calling when get sender stream.
+        /// </summary>
+        /// <returns>Stream</returns>
+        protected override ValueTask<Stream> OnGetSenderStreamAsync()
         {
-            // Fire and forgot each request, because the request can send with no waiting on inter process.
-#if NETSTANDARD1_3
-            Task.Run(() => this.peer!.OnReceived(data));
-#else
-            ThreadPool.QueueUserWorkItem(_ => this.peer!.OnReceived(data));
-#endif
-            return default;
+            var pair = PipelinedStream.Create();
+
+            async void RunReceivedAsynchronously(Stream fromRead)
+            {
+                try
+                {
+                    await this.peer!.OnReceivedAsync(fromRead).
+                        ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine(ex);
+                }
+            }
+
+            RunReceivedAsynchronously(pair.FromRead);
+            return new ValueTask<Stream>(pair.ToWrite);
         }
 
         public static DirectAttachedTransportPair Create()

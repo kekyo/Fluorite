@@ -19,7 +19,7 @@
 
 using Fluorite.Serialization;
 using System;
-using System.Text;
+using System.IO;
 using System.Threading.Tasks;
 
 namespace Fluorite.Json
@@ -33,19 +33,28 @@ namespace Fluorite.Json
         public string PayloadContentType =>
             "application/json";
 
-        public ValueTask<ArraySegment<byte>> SerializeAsync(Guid sessionIdentity, string methodIdentity, object payload)
+        public async ValueTask SerializeAsync(Stream writeTo, Guid requestIdentity, string methodIdentity, object body)
         {
-            var container = new JsonContainer(sessionIdentity, methodIdentity, payload);
-            var jsonString = Newtonsoft.Json.JsonConvert.SerializeObject(container);
-            var data = Encoding.UTF8.GetBytes(jsonString);
-            return new ValueTask<ArraySegment<byte>>(new ArraySegment<byte>(data));
+            var container = new JsonContainer(requestIdentity, methodIdentity, body);
+            var jtoken = Newtonsoft.Json.Linq.JToken.FromObject(container);
+
+            var tw = new StreamWriter(writeTo);   // Suppressed BOM UTF8
+            var jw = new Newtonsoft.Json.JsonTextWriter(tw);
+
+            await jtoken.WriteToAsync(jw).
+                ConfigureAwait(false);
+            await jw.FlushAsync().
+                ConfigureAwait(false);
         }
 
-        public ValueTask<IPayloadContainerView> DeserializeAsync(ArraySegment<byte> data)
+        public async ValueTask<IPayloadContainerView> DeserializeAsync(Stream readFrom)
         {
-            var jsonString = Encoding.UTF8.GetString(data.Array!, data.Offset, data.Count);
-            var container = Newtonsoft.Json.JsonConvert.DeserializeObject<JsonContainer>(jsonString);
-            return new ValueTask<IPayloadContainerView>(container);
+            var tr = new StreamReader(readFrom);
+            var jr = new Newtonsoft.Json.JsonTextReader(tr);
+
+            var jtoken = await Newtonsoft.Json.Linq.JToken.ReadFromAsync(jr).
+                ConfigureAwait(false);
+            return jtoken.ToObject<JsonContainer>()!;
         }
 
         public static readonly JsonSerializer Instance =

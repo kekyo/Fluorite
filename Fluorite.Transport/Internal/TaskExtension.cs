@@ -18,33 +18,24 @@
 ////////////////////////////////////////////////////////////////////////////
 
 using System;
-using System.Runtime.CompilerServices;
+using System.Diagnostics;
+using System.Threading.Tasks;
 
-namespace Fluorite
+namespace Fluorite.Internal
 {
     /// <summary>
-    /// The unit. It will be deleted when supported void method.
+    /// Task extensions.
     /// </summary>
-    public struct Unit : IEquatable<Unit>
+    internal static class TaskExtension
     {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public override int GetHashCode() =>
-            0;
+        private static readonly Action<Task> empty = 
+            task => Debug.WriteLine($"Task.Discard: Discarded: {task.ToString()}");
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public override bool Equals(object? obj) =>
-            obj is Unit;
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool Equals(Unit obj) =>
-            true;
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        bool IEquatable<Unit>.Equals(Unit other) =>
-            true;
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public override string ToString() =>
-            "()";
+        /// <summary>
+        /// Safely discarding a task.
+        /// </summary>
+        /// <param name="task">Task</param>
+        public static void Discard(this Task task) =>
+            task.ContinueWith(empty);
     }
 }

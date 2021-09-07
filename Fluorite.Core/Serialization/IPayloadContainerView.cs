@@ -22,14 +22,32 @@ using System.Threading.Tasks;
 
 namespace Fluorite.Serialization
 {
+    /// <summary>
+    /// Deserialized payload container view interface.
+    /// </summary>
     public interface IPayloadContainerView
     {
-        Guid SessionIdentity { get; }
+        /// <summary>
+        /// Request identity.
+        /// </summary>
+        Guid RequestIdentity { get; }
 
+        /// <summary>
+        /// Method identity.
+        /// </summary>
         string MethodIdentity { get; }
 
-        int DataCount { get; }
+        /// <summary>
+        /// Body data count.
+        /// </summary>
+        int BodyCount { get; }
 
-        ValueTask<object?> DeserializeDataAsync(int index, Type type);
+        /// <summary>
+        /// Deserialize a body data.
+        /// </summary>
+        /// <param name="index">Body index</param>
+        /// <param name="type">Target type</param>
+        /// <returns>Deserialized instance</returns>
+        ValueTask<object?> DeserializeBodyAsync(int index, Type type);
     }
 }

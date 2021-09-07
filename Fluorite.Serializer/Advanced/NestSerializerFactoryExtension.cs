@@ -26,10 +26,6 @@ namespace Fluorite.Advanced
     public static class NestSerializerFactoryExtension
     {
         public static Nest Create(
-            this NestFactory _, ITransport transport) =>
-            _.Create(NestSettings.Create(JsonSerializer.Instance, transport));
-
-        public static Nest Create(
             this NestFactory _, ITransport transport, IPeerProxyFactory factory) =>
             _.Create(NestSettings.Create(JsonSerializer.Instance, transport), factory);
     }

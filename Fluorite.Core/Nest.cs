@@ -24,23 +24,35 @@ using Fluorite.Transport;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
 namespace Fluorite
 {
+    /// <summary>
+    /// Fluorite Nest class.
+    /// </summary>
+    /// <remarks>It's core structure of Fluorite.</remarks>
     public sealed class Nest
     {
         private readonly ISerializer serializer;
         private readonly IPeerProxyFactory factory;
 
         private readonly Dictionary<string, MethodStub> stubs = new();
-        private readonly Dictionary<Guid, Awaiter> awaiters = new();
+        private readonly Dictionary<Guid, InvokingAwaiter> awaiters = new();
 
         private ITransport? transport;
-        private IDisposable? disposer;
 
+        ///////////////////////////////////////////////////////////////////////
+        // Constructor
+
+        /// <summary>
+        /// Constructor.
+        /// </summary>
+        /// <param name="settings">Nest setting</param>
+        /// <param name="factory">Proxy factory interface</param>
         internal Nest(NestSettings settings, IPeerProxyFactory factory)
         {
             this.factory = factory;
@@ -48,48 +60,48 @@ namespace Fluorite
             this.transport = settings.Transport;
 
             this.transport.SetPayloadContentType(this.serializer.PayloadContentType);
-            this.disposer = this.transport.Subscribe(new TransportObserver(this));
+            this.transport.Initialize(this.OnReceivedAsync);
         }
 
+        ///////////////////////////////////////////////////////////////////////
+        // Shutdown sequence
+
+        /// <summary>
+        /// Perform shutdown.
+        /// </summary>
         public async ValueTask ShutdownAsync()
         {
-            if (this.disposer != null)
+            if (this.transport != null)
             {
                 lock (this.stubs)
                 {
                     this.stubs.Clear();
                 }
 
-                this.CancelAwaitings();
+                lock (this.awaiters)
+                {
+                    foreach (var entry in this.awaiters)
+                    {
+                        entry.Value.SetCanceled();
+                    }
 
-                this.disposer.Dispose();
-                this.disposer = null;
-            }
+                    this.awaiters.Clear();
+                }
 
-            if (this.transport != null)
-            {
                 await this.transport.ShutdownAsync().
                     ConfigureAwait(false);
                 this.transport = null;
             }
         }
 
-        private void CancelAwaitings()
-        {
-            lock (this.awaiters)
-            {
-                foreach (var entry in this.awaiters)
-                {
-                    entry.Value.SetCanceled();
-                }
+        ///////////////////////////////////////////////////////////////////////
+        // Register host object
 
-                this.awaiters.Clear();
-            }
-        }
-
-        public void Register(IHost host) =>
-            this.Register(host, SynchronizationContext.Current);
-
+        /// <summary>
+        /// Register exposing object.
+        /// </summary>
+        /// <param name="host">Expose object</param>
+        /// <param name="synchContext">Will be bound synchronization context</param>
         public void Register(IHost host, SynchronizationContext? synchContext)
         {
             lock (this.stubs)
@@ -106,6 +118,18 @@ namespace Fluorite
             }
         }
 
+        /// <summary>
+        /// Register exposing object.
+        /// </summary>
+        /// <param name="host">Expose object</param>
+        public void Register(IHost host) =>
+            this.Register(host, SynchronizationContext.Current);
+
+
+        /// <summary>
+        /// Unregister exposing object.
+        /// </summary>
+        /// <param name="host">Expose object</param>
         public void Unregister(IHost host)
         {
             lock (this.stubs)
@@ -122,36 +146,57 @@ namespace Fluorite
             }
         }
 
+        ///////////////////////////////////////////////////////////////////////
+        // Proxy generator
+
+        /// <summary>
+        /// Get transparent proxy instance by expose interface type.
+        /// </summary>
+        /// <typeparam name="TPeer">Expose interface type</typeparam>
+        /// <returns>Proxy instance</returns>
         public TPeer GetPeer<TPeer>()
             where TPeer : class, IHost =>
             this.factory?.CreateInstance<TPeer>(this)!;
 
+        ///////////////////////////////////////////////////////////////////////
+        // RPC management
+ 
+        /// <summary>
+        /// Lower level entry point from proxy interface.
+        /// </summary>
+        /// <typeparam name="TResult">Result type</typeparam>
+        /// <param name="methodIdentity">Method (or status) identity</param>
+        /// <param name="args">Additional arguments</param>
+        /// <returns>Result value</returns>
         internal async ValueTask<TResult> InvokeAsync<TResult>(string methodIdentity, object[] args)
         {
             Debug.Assert(!string.IsNullOrWhiteSpace(methodIdentity));
             Debug.Assert(args != null);
 
-            var sessionIdentity = Guid.NewGuid();
+            var requestIdentity = Guid.NewGuid();
 
-            var data = await this.serializer.SerializeAsync(sessionIdentity, methodIdentity, args!).
-                ConfigureAwait(false);
-
-            var awaiter = new Awaiter<TResult>();
+            var awaiter = new InvokingAwaiter<TResult>();
             lock (this.awaiters)
             {
-                this.awaiters.Add(sessionIdentity, awaiter);
+                this.awaiters.Add(requestIdentity, awaiter);
             }
 
             try
             {
-                await this.transport!.SendAsync(data).
-                    ConfigureAwait(false);
+                using (var stream = await this.transport!.GetSenderStreamAsync().
+                    ConfigureAwait(false))
+                {
+                    await this.serializer.SerializeAsync(stream, requestIdentity, methodIdentity, args!).
+                        ConfigureAwait(false);
+                    await stream.FlushAsync().
+                        ConfigureAwait(false);
+                }
             }
             catch
             {
                 lock (this.awaiters)
                 {
-                    this.awaiters.Remove(sessionIdentity);
+                    this.awaiters.Remove(requestIdentity);
                 }
                 throw;
             }
@@ -160,14 +205,19 @@ namespace Fluorite
                 ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Received awaiter calling (on caller role).
+        /// </summary>
+        /// <param name="container">Received payload container</param>
+        /// <param name="awaiter">Awaiter</param>
         private static async ValueTask AcceptAwaiterAsync(
-            IPayloadContainerView container, Awaiter awaiter)
+            IPayloadContainerView container, InvokingAwaiter awaiter)
         {
-            Debug.Assert(container.DataCount == 1);
+            Debug.Assert(container.BodyCount == 1);
 
             if (container.MethodIdentity == "Exception")
             {
-                var message = await container.DeserializeDataAsync(0, typeof(string)).
+                var message = await container.DeserializeBodyAsync(0, typeof(string)).
                     ConfigureAwait(false);
                 awaiter.SetException((message != null) ? new Exception((string)message) : new Exception());
             }
@@ -177,7 +227,7 @@ namespace Fluorite
 
                 try
                 {
-                    var result = await container.DeserializeDataAsync(0, awaiter.ResultType).
+                    var result = await container.DeserializeBodyAsync(0, awaiter.ResultType).
                         ConfigureAwait(false);
                     awaiter.SetResult(result);
                 }
@@ -188,6 +238,10 @@ namespace Fluorite
             }
         }
 
+        /// <summary>
+        /// Received calling request (on callee role).
+        /// </summary>
+        /// <param name="container">Received payload container</param>
         private async ValueTask AcceptInvokingAsync(IPayloadContainerView container)
         {
             MethodStub? hostMethod = null;
@@ -212,32 +266,44 @@ namespace Fluorite
                     name = "Exception";
                 }
 
-                var resultData = await this.serializer.SerializeAsync(container.SessionIdentity, name, new[] { result }).
-                    ConfigureAwait(false);
-                await this.transport!.SendAsync(resultData).
-                    ConfigureAwait(false);
+                using (var stream = await this.transport!.GetSenderStreamAsync().
+                    ConfigureAwait(false))
+                {
+                    await this.serializer.SerializeAsync(stream, container.RequestIdentity, name, new[] { result }).
+                        ConfigureAwait(false);
+                    await stream.FlushAsync().
+                        ConfigureAwait(false);
+                }
             }
             // Will ignore sprious (Already abandoned awaiter)
             else if ((container.MethodIdentity != "Result") && (container.MethodIdentity != "Exception"))
             {
-                var resultData = await this.serializer.SerializeAsync(container.SessionIdentity, "Exception", new[] { "Method not found." }).
-                    ConfigureAwait(false);
-                await this.transport!.SendAsync(resultData).
-                    ConfigureAwait(false);
+                using (var stream = await this.transport!.GetSenderStreamAsync().
+                    ConfigureAwait(false))
+                {
+                    await this.serializer.SerializeAsync(stream, container.RequestIdentity, "Exception", new[] { "Method not found." }).
+                        ConfigureAwait(false);
+                    await stream.FlushAsync().
+                        ConfigureAwait(false);
+                }
             }
         }
 
-        internal async ValueTask OnNextAsync(ArraySegment<byte> data)
+        /// <summary>
+        /// Arrived raw data at transport.
+        /// </summary>
+        /// <param name="readFrom">Raw data contained stream</param>
+        private async ValueTask OnReceivedAsync(Stream readFrom)
         {
-            var container = await this.serializer.DeserializeAsync(data).
+            var container = await this.serializer.DeserializeAsync(readFrom).
                 ConfigureAwait(false);
 
-            Awaiter? awaiter = null;
+            InvokingAwaiter? awaiter = null;
             lock (this.awaiters)
             {
-                if (this.awaiters.TryGetValue(container.SessionIdentity, out awaiter))
+                if (this.awaiters.TryGetValue(container.RequestIdentity, out awaiter))
                 {
-                    this.awaiters.Remove(container.SessionIdentity);
+                    this.awaiters.Remove(container.RequestIdentity);
                 }
             }
 
@@ -253,9 +319,12 @@ namespace Fluorite
             }
         }
 
-        internal void OnCompleted() =>
-            this.CancelAwaitings();
+        ///////////////////////////////////////////////////////////////////////
+        // Factory accessor
 
+        /// <summary>
+        /// Fluorite factory accessor.
+        /// </summary>
         public static readonly NestFactory Factory =
             new NestFactory();
     }

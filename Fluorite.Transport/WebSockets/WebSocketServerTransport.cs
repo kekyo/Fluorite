@@ -17,10 +17,12 @@
 //
 ////////////////////////////////////////////////////////////////////////////
 
+using Fluorite.Internal;
 using Fluorite.Transport;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.WebSockets;
@@ -30,6 +32,9 @@ using System.Threading.Tasks;
 
 namespace Fluorite.WebSockets
 {
+    /// <summary>
+    /// Fluorite WebSocket transport implementation for server side.
+    /// </summary>
     public sealed class WebSocketServerTransport :
         TransportBase
     {
@@ -43,6 +48,9 @@ namespace Fluorite.WebSockets
         private volatile int concurrentCount;
         private WebSocketMessageType messageType = WebSocketMessageType.Text;
 
+        /// <summary>
+        /// Constructor.
+        /// </summary>
         private WebSocketServerTransport()
         {
         }
@@ -63,7 +71,7 @@ namespace Fluorite.WebSockets
 
                 try
                 {
-                    await controller.RunAsync(this.OnReceived, shutdownTask).
+                    await controller.RunAsync(this.OnReceivedAsync, shutdownTask).
                         ConfigureAwait(false);
                 }
                 finally
@@ -102,14 +110,12 @@ namespace Fluorite.WebSockets
                     ConfigureAwait(false);
                 if (object.ReferenceEquals(awakeTask, shutdownTask))
                 {
-                    await shutdownTask.
-                        ConfigureAwait(false);
-                    var _ = acceptWebSocketTask.ContinueWith(_ => { });    // ignoring sink
+                    await shutdownTask;
+                    acceptWebSocketTask.Discard();
                     return;
                 }
 
-                var webSocketContext = await acceptWebSocketTask.
-                    ConfigureAwait(false);
+                var webSocketContext = await acceptWebSocketTask;
 
                 await this.PumpAsync(webSocketContext.WebSocket, shutdownTask).
                     ConfigureAwait(false);
@@ -149,14 +155,12 @@ namespace Fluorite.WebSockets
                         ConfigureAwait(false);
                     if (object.ReferenceEquals(awakeTask, shutdownTask))
                     {
-                        await shutdownTask.
-                            ConfigureAwait(false);
-                        var _ = getContextTask.ContinueWith(_ => { });    // ignoring sink
+                        await shutdownTask;
+                        getContextTask.Discard();
                         break;
                     }
 
-                    var httpContext = await getContextTask.
-                        ConfigureAwait(false);
+                    var httpContext = await getContextTask;
 
                     this.ConnectAsynchronously(httpContext);
 
@@ -176,9 +180,18 @@ namespace Fluorite.WebSockets
             }
         }
 
+        /// <summary>
+        /// Start WebSocket server concurrently.
+        /// </summary>
+        /// <param name="serverPort">WebSocket server port</param>
+        /// <param name="requiredSecureConnection">Will accept when secure connection is enabled</param>
         public void Start(int serverPort, bool requiredSecureConnection) =>
             this.Start($"{(requiredSecureConnection ? "https" : "http")}://+:{serverPort}/");
 
+        /// <summary>
+        /// Start WebSocket server concurrently.
+        /// </summary>
+        /// <param name="endPointUrl">WebSocket server endpoint</param>
         public void Start(string endPointUrl)
         {
             Debug.Assert(this.httpListener == null);
@@ -194,7 +207,10 @@ namespace Fluorite.WebSockets
             this.ListenAsynchronously();
         }
 
-        public override async ValueTask ShutdownAsync()
+        /// <summary>
+        /// Calling when shutdown sequence.
+        /// </summary>
+        protected override async ValueTask OnShutdownAsync()
         {
             Debug.Assert(this.httpListener != null);
             Debug.Assert(this.shutdown != null);
@@ -211,26 +227,38 @@ namespace Fluorite.WebSockets
             this.done = null;
         }
 
-        public override ValueTask SendAsync(ArraySegment<byte> data)
+        /// <summary>
+        /// Calling when get sender stream.
+        /// </summary>
+        /// <returns>Stream</returns>
+        protected override ValueTask<Stream> OnGetSenderStreamAsync()
         {
             if (this.httpListener is { })
             {
-                Task[] completions;
+                // TODO: Broadcast all connections.
+                WebSocketController[] controllers;
                 lock (this.connections)
                 {
-                    completions = this.connections.Values.
-                        Select(controller => controller.SendAsync(data)).
+                    controllers = this.connections.Values.
                         ToArray();
                 }
 
-                return new ValueTask(Task.WhenAll(completions));
+                if (controllers.Length >= 1)
+                {
+                    var bridges = controllers.
+                        Select(controller => controller.AllocateSenderStreamBridge()).
+                        ToArray();
+                    return new ValueTask<Stream>(new SenderStream(bridges));
+                }
             }
-            else
-            {
-                throw new ObjectDisposedException("WebSocketServerTransport already shutdowned.");
-            }
+
+            throw new ObjectDisposedException("WebSocketServerTransport already shutdowned.");
         }
 
+        /// <summary>
+        /// Create WebSocket transport instance.
+        /// </summary>
+        /// <returns>WebSocketServerTransport</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static WebSocketServerTransport Create() =>
             new WebSocketServerTransport();

@@ -18,17 +18,37 @@
 ////////////////////////////////////////////////////////////////////////////
 
 using System;
+using System.IO;
 using System.Threading.Tasks;
 
 namespace Fluorite.Transport
 {
-    public interface ITransport :
-        IObservable<ArraySegment<byte>>
+    /// <summary>
+    /// Common interface for Fluorite transport.
+    /// </summary>
+    public interface ITransport
     {
+        /// <summary>
+        /// Initialize transport.
+        /// </summary>
+        /// <param name="receiver">Receiver calling when transport receive raw data</param>
+        void Initialize(Func<Stream, ValueTask> receiver);
+
+        /// <summary>
+        /// Shutdown transport.
+        /// </summary>
+        ValueTask ShutdownAsync();
+
+        /// <summary>
+        /// Set transport payload content type.
+        /// </summary>
+        /// <param name="contentType">HTTP content type like string ('application/json', 'application/octet-stream' and etc...)</param>
         void SetPayloadContentType(string contentType);
 
-        ValueTask SendAsync(ArraySegment<byte> data);
-
-        ValueTask ShutdownAsync();
+        /// <summary>
+        /// Get sender stream.
+        /// </summary>
+        /// <returns>Stream</returns>
+        ValueTask<Stream> GetSenderStreamAsync();
     }
 }

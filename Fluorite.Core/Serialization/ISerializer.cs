@@ -18,15 +18,36 @@
 ////////////////////////////////////////////////////////////////////////////
 
 using System;
+using System.IO;
 using System.Threading.Tasks;
 
 namespace Fluorite.Serialization
 {
+    /// <summary>
+    /// Fluorite serializer interface.
+    /// </summary>
     public interface ISerializer
     {
+        /// <summary>
+        /// Payload content type string for this serializer content.
+        /// </summary>
+        /// <remarks>HTTP content type like string ('application/json', 'application/octet-stream' and etc...)</remarks>
         string PayloadContentType { get; }
 
-        ValueTask<ArraySegment<byte>> SerializeAsync(Guid sessionIdentity, string methodIdentity, object payload);
-        ValueTask<IPayloadContainerView> DeserializeAsync(ArraySegment<byte> data);
+        /// <summary>
+        /// Perform serialize with header values and body.
+        /// </summary>
+        /// <param name="writeTo">Serialize into this stream</param>
+        /// <param name="requestIdentity">Request identity</param>
+        /// <param name="methodIdentity">Method identity</param>
+        /// <param name="body">Body data</param>
+        ValueTask SerializeAsync(Stream writeTo, Guid requestIdentity, string methodIdentity, object body);
+
+        /// <summary>
+        /// Perform deserialize from a stream.
+        /// </summary>
+        /// <param name="readFrom">Deserialize from this stream</param>
+        /// <returns>Payload container view instance</returns>
+        ValueTask<IPayloadContainerView> DeserializeAsync(Stream readFrom);
     }
 }

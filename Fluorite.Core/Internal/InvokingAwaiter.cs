@@ -23,10 +23,10 @@ using System.Threading.Tasks;
 
 namespace Fluorite.Internal
 {
-    internal abstract class Awaiter
+    internal abstract class InvokingAwaiter
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private protected Awaiter()
+        private protected InvokingAwaiter()
         {
         }
 
@@ -37,23 +37,23 @@ namespace Fluorite.Internal
         public abstract void SetCanceled();
     }
 
-    internal sealed class Awaiter<TData> : Awaiter
+    internal sealed class InvokingAwaiter<TResult> : InvokingAwaiter
     {
-        private readonly TaskCompletionSource<TData> tcs = new();
+        private readonly TaskCompletionSource<TResult> tcs = new();
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Awaiter()
+        public InvokingAwaiter()
         {
         }
 
-        public Task<TData> Task =>
+        public Task<TResult> Task =>
             this.tcs.Task;
 
         public override Type ResultType =>
-            typeof(TData);
+            typeof(TResult);
 
         public override void SetResult(object? result) =>
-            this.tcs.TrySetResult((TData)result!);
+            this.tcs.TrySetResult((TResult)result!);
         public override void SetException(Exception ex) =>
             this.tcs.TrySetException(ex);
         public override void SetCanceled() =>

@@ -18,48 +18,36 @@
 ////////////////////////////////////////////////////////////////////////////
 
 using System;
-using System.Diagnostics;
-using System.Runtime.CompilerServices;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Fluorite.Internal
 {
-    internal sealed class TransportObserver :
-        IObserver<ArraySegment<byte>>
+    internal sealed class StreamBridge : IDisposable
     {
-        private readonly Nest parent;
+        private readonly AsyncQueue<StreamData?> queue = new();
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public TransportObserver(Nest parent) =>
-            this.parent = parent;
-
-        public async void OnNext(ArraySegment<byte> data)
+        public void Dispose()
         {
-            try
+            while (this.queue.TryDequeue(out var streamData))
             {
-                await this.parent.OnNextAsync(data).
-                    ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine(ex);
+                streamData?.Dispose();
             }
         }
 
-        public void OnError(Exception ex)
-        {
-            Debug.WriteLine(ex);
-        }
+        public void Enqueue(StreamData streamData) =>
+            this.queue.Enqueue(streamData);
 
-        public void OnCompleted()
-        {
-            try
-            {
-                this.parent.OnCompleted();
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine(ex);
-            }
-        }
+        public void Finished() =>
+            this.queue.Enqueue(null);
+
+        public ValueTask<StreamData?> PeekAsync(CancellationToken token) =>
+            this.queue.PeekAsync(token);
+
+        public ValueTask<StreamData?> DequeueAsync(CancellationToken token) =>
+            this.queue.DequeueAsync(token);
+
+        public bool TryDequeue(out StreamData? streamData) =>
+            this.queue.TryDequeue(out streamData);
     }
 }

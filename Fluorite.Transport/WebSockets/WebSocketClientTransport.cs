@@ -20,6 +20,7 @@
 using Fluorite.Transport;
 using System;
 using System.Diagnostics;
+using System.IO;
 using System.Net;
 using System.Net.WebSockets;
 using System.Runtime.CompilerServices;
@@ -27,6 +28,9 @@ using System.Threading.Tasks;
 
 namespace Fluorite.WebSockets
 {
+    /// <summary>
+    /// Fluorite WebSocket transport implementation for client side.
+    /// </summary>
     public sealed class WebSocketClientTransport : TransportBase
     {
         private const int BufferElementSize = 16384;
@@ -37,12 +41,19 @@ namespace Fluorite.WebSockets
         private WebSocketController? controller;
         private WebSocketMessageType messageType;
 
+        /// <summary>
+        /// Constructor.
+        /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private WebSocketClientTransport()
         {
         }
 
-        protected override void SetPayloadContentType(string contentType) =>
+        /// <summary>
+        /// Calling when set payload content type.
+        /// </summary>
+        /// <param name="contentType">HTTP content type like string ('application/json', 'application/octet-stream' and etc...)</param>
+        protected override void OnSetPayloadContentType(string contentType) =>
             this.messageType = (contentType == "application/octet-stream") ?
                 WebSocketMessageType.Binary :
                 WebSocketMessageType.Text;
@@ -61,21 +72,22 @@ namespace Fluorite.WebSockets
                     try
                     {
                         var shutdownTask = this.shutdown!.Task;
-                        await this.controller.RunAsync(this.OnReceived, shutdownTask).
-                            ConfigureAwait(false);
-
-                        this.OnReceiveFinished();
+                        await this.controller.RunAsync(this.OnReceivedAsync, shutdownTask).
+                            ConfigureAwait(false); ;
                     }
                     catch (Exception ex)
                     {
                         Debug.WriteLine(ex);
-                        this.OnReceiveError(ex);
                     }
                     finally
                     {
                         this.webSocket!.Dispose();
                     }
                 }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine(ex);
             }
             finally
             {
@@ -87,18 +99,33 @@ namespace Fluorite.WebSockets
         private static Uri CreateUrl(EndPoint serverEndPoint, bool performSecureConnection) =>
             new Uri($"{(performSecureConnection ? "wss" : "ws")}://{serverEndPoint}/");
 
-        public async ValueTask ConnectAsync(string serverAddress, int port, bool performSecureConnection)
+        /// <summary>
+        /// Connect WebSocket server.
+        /// </summary>
+        /// <param name="serverAddress">WebSocket server address</param>
+        /// <param name="serverPort">WebSocket port</param>
+        /// <param name="performSecureConnection">Perform secure connection when available</param>
+        public async ValueTask ConnectAsync(
+            string serverAddress, int serverPort, bool performSecureConnection)
         {
-            var entry = await Dns.GetHostEntryAsync(serverAddress).
-                ConfigureAwait(false);
+            var entry = await Dns.GetHostEntryAsync(serverAddress);
             await this.ConnectAsync(
-                CreateUrl(new IPEndPoint(entry.AddressList[0], port), performSecureConnection)).
-                ConfigureAwait(false);
+                CreateUrl(new IPEndPoint(entry.AddressList[0], serverPort), performSecureConnection));
         }
 
-        public ValueTask ConnectAsync(EndPoint serverEndPoint, bool performSecureConnection) =>
+        /// <summary>
+        /// Connect WebSocket server.
+        /// </summary>
+        /// <param name="serverEndPoint">WebSocket server endpoint</param>
+        /// <param name="performSecureConnection">Perform secure connection when available</param>
+        public ValueTask ConnectAsync(
+            EndPoint serverEndPoint, bool performSecureConnection) =>
             this.ConnectAsync(CreateUrl(serverEndPoint, performSecureConnection));
 
+        /// <summary>
+        /// Connect WebSocket server.
+        /// </summary>
+        /// <param name="serverEndPoint">WebSocket server endpoint</param>
         public async ValueTask ConnectAsync(Uri serverEndPoint)
         {
             Debug.Assert(this.webSocket == null);
@@ -109,12 +136,16 @@ namespace Fluorite.WebSockets
             this.done = new();
             this.webSocket = new();
 
-            await this.webSocket.ConnectAsync(serverEndPoint, default);
+            await this.webSocket.ConnectAsync(serverEndPoint, default).
+                ConfigureAwait(false);
 
             this.ProceedReceivingAsynchronously();
         }
 
-        public override async ValueTask ShutdownAsync()
+        /// <summary>
+        /// Calling when shutdown sequence.
+        /// </summary>
+        protected override async ValueTask OnShutdownAsync()
         {
             Debug.Assert(this.webSocket != null);
             Debug.Assert(this.shutdown != null);
@@ -137,11 +168,16 @@ namespace Fluorite.WebSockets
             }
         }
 
-        public override ValueTask SendAsync(ArraySegment<byte> data)
+        /// <summary>
+        /// Calling when get sender stream.
+        /// </summary>
+        /// <returns>Stream</returns>
+        protected override ValueTask<Stream> OnGetSenderStreamAsync()
         {
             if (this.controller is { } controller)
             {
-                return new ValueTask(this.controller!.SendAsync(data));
+                var bridge = controller.AllocateSenderStreamBridge();
+                return new ValueTask<Stream>(new SenderStream(new[] { bridge }));
             }
             else
             {
@@ -149,6 +185,10 @@ namespace Fluorite.WebSockets
             }
         }
 
+        /// <summary>
+        /// Create WebSocket transport instance.
+        /// </summary>
+        /// <returns>WebSocketClientTransport</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static WebSocketClientTransport Create() =>
             new WebSocketClientTransport();

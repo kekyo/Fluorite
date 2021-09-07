@@ -18,117 +18,100 @@
 ////////////////////////////////////////////////////////////////////////////
 
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Fluorite.Transport
 {
+    /// <summary>
+    /// Base transport implementation for useful features.
+    /// </summary>
     public abstract class TransportBase :
         ITransport
     {
-        private readonly List<IObserver<ArraySegment<byte>>> observers = new();
+        private Func<Stream, ValueTask>? receiver;
 
+        /// <summary>
+        /// Constructor.
+        /// </summary>
         protected TransportBase()
         {
         }
 
-        protected virtual void SetPayloadContentType(string contentType)
+        /// <summary>
+        /// Initialize transport.
+        /// </summary>
+        /// <param name="receiver">Receiver calling when transport receive raw data</param>
+        void ITransport.Initialize(Func<Stream, ValueTask> receiver)
         {
+            Debug.Assert(this.receiver == null);
+            this.receiver = receiver;
         }
 
-        void ITransport.SetPayloadContentType(string contentType) =>
-            this.SetPayloadContentType(contentType);
-
-        protected void OnReceived(ArraySegment<byte> data)
-        {
-            lock (this.observers)
-            {
-                foreach (var observer in this.observers.ToArray())
-                {
-                    try
-                    {
-                        observer.OnNext(data);
-                    }
-                    catch (Exception ex)
-                    {
-                        Debug.WriteLine(ex);
-                    }
-                }
-            }
-        }
-
-        protected void OnReceiveError(Exception ex)
-        {
-            lock (this.observers)
-            {
-                foreach (var observer in this.observers.ToArray())
-                {
-                    try
-                    {
-                        observer.OnError(ex);
-                    }
-                    catch (Exception ex2)
-                    {
-                        Debug.WriteLine(ex2);
-                    }
-                }
-            }
-        }
-
-        protected void OnReceiveFinished()
-        {
-            lock (this.observers)
-            {
-                foreach (var observer in this.observers.ToArray())
-                {
-                    try
-                    {
-                        observer.OnCompleted();
-                    }
-                    catch (Exception ex)
-                    {
-                        Debug.WriteLine(ex);
-                    }
-                }
-            }
-        }
-
-        public abstract ValueTask SendAsync(ArraySegment<byte> data);
-
-        public virtual ValueTask ShutdownAsync() =>
+        /// <summary>
+        /// Calling when shutdown sequence.
+        /// </summary>
+        protected virtual ValueTask OnShutdownAsync() =>
             default;
 
-        public IDisposable Subscribe(IObserver<ArraySegment<byte>> observer)
+        /// <summary>
+        /// Shutdown transport.
+        /// </summary>
+        ValueTask ITransport.ShutdownAsync()
         {
-            lock (this.observers)
+            if (Interlocked.CompareExchange(ref this.receiver, null, this.receiver) != null)
             {
-                this.observers.Add(observer);
-                return new Disposer(this, observer);
+                return this.OnShutdownAsync();
+            }
+            else
+            {
+                return default;
             }
         }
 
-        private void InternalDispose(IObserver<ArraySegment<byte>> observer)
+        /// <summary>
+        /// Calling when set payload content type.
+        /// </summary>
+        /// <param name="contentType">HTTP content type like string ('application/json', 'application/octet-stream' and etc...)</param>
+        protected virtual void OnSetPayloadContentType(string contentType)
         {
-            lock (this.observers)
-            {
-                this.observers.Remove(observer);
-            }
         }
 
-        private sealed class Disposer : IDisposable
-        {
-            private readonly TransportBase parent;
-            private readonly IObserver<ArraySegment<byte>> observer;
+        /// <summary>
+        /// Set transport payload content type.
+        /// </summary>
+        /// <param name="contentType">HTTP content type like string ('application/json', 'application/octet-stream' and etc...)</param>
+        void ITransport.SetPayloadContentType(string contentType) =>
+            this.OnSetPayloadContentType(contentType);
 
-            public Disposer(TransportBase parent, IObserver<ArraySegment<byte>> observer)
+        /// <summary>
+        /// Transfer received raw data.
+        /// </summary>
+        /// <param name="readFrom">Raw data contained stream</param>
+        protected ValueTask OnReceivedAsync(Stream readFrom)
+        {
+            var receiver = this.receiver;
+            if (receiver == null)
             {
-                this.parent = parent;
-                this.observer = observer;
+                throw new InvalidOperationException("Transport isn't initialized.");
             }
 
-            public void Dispose() =>
-                this.parent.InternalDispose(this.observer);
+            return receiver(readFrom);
         }
+
+        /// <summary>
+        /// Calling when get sender stream.
+        /// </summary>
+        /// <returns>Stream</returns>
+        protected abstract ValueTask<Stream> OnGetSenderStreamAsync();
+
+        /// <summary>
+        /// Get sender stream.
+        /// </summary>
+        /// <returns>Stream</returns>
+        ValueTask<Stream> ITransport.GetSenderStreamAsync() =>
+            this.OnGetSenderStreamAsync();
     }
 }

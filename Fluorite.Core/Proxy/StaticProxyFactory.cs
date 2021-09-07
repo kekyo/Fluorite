@@ -24,15 +24,26 @@ using System.Runtime.CompilerServices;
 
 namespace Fluorite.Proxy
 {
+    /// <summary>
+    /// Static transparent proxy factory class.
+    /// </summary>
     public sealed class StaticProxyFactory :
         IPeerProxyFactory
     {
         private readonly Dictionary<Type, Func<Nest, IHost>> generators = new();
 
+        /// <summary>
+        /// Constructor.
+        /// </summary>
         private StaticProxyFactory()
         {
         }
 
+        /// <summary>
+        /// Register proxy class type.
+        /// </summary>
+        /// <typeparam name="TPeer">Target expose interface type</typeparam>
+        /// <typeparam name="TProxy">Proxy class type</typeparam>
         private void InternalRegister<TPeer, TProxy>()
             where TPeer : class, IHost
             where TProxy : ProxyBase, new()
@@ -50,6 +61,10 @@ namespace Fluorite.Proxy
             }
         }
 
+        /// <summary>
+        /// Unregister proxy class type.
+        /// </summary>
+        /// <typeparam name="TPeer">Target expose interface type</typeparam>
         private void InternalUnregister<TPeer>()
         {
             var type = typeof(TPeer);
@@ -64,6 +79,12 @@ namespace Fluorite.Proxy
             }
         }
 
+        /// <summary>
+        /// Create transparent proxy instance.
+        /// </summary>
+        /// <typeparam name="TPeer">Exposed interface type</typeparam>
+        /// <param name="nest">Nest instance</param>
+        /// <returns>Proxy instance</returns>
         public TPeer CreateInstance<TPeer>(Nest nest)
             where TPeer : class, IHost
         {
@@ -85,15 +106,27 @@ namespace Fluorite.Proxy
             return (TPeer)generator(nest);
         }
 
+        /// <summary>
+        /// Static transparent proxy factory instance.
+        /// </summary>
         public static readonly StaticProxyFactory Instance =
             new StaticProxyFactory();
 
+        /// <summary>
+        /// Register proxy class type.
+        /// </summary>
+        /// <typeparam name="TPeer">Target expose interface type</typeparam>
+        /// <typeparam name="TProxy">Proxy class type</typeparam>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void Register<TPeer, TProxy>()
             where TPeer : class, IHost
             where TProxy : ProxyBase, new() =>
             Instance.InternalRegister<TPeer, TProxy>();
 
+        /// <summary>
+        /// Unregister proxy class type.
+        /// </summary>
+        /// <typeparam name="TPeer">Target expose interface type</typeparam>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void Unregister<TPeer>() =>
             Instance.InternalUnregister<TPeer>();

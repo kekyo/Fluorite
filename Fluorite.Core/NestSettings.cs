@@ -23,11 +23,26 @@ using System.Runtime.CompilerServices;
 
 namespace Fluorite
 {
+    /// <summary>
+    /// Fluorite nest setting class.
+    /// </summary>
     public sealed class NestSettings
     {
+        /// <summary>
+        /// The serializer will be used by Fluorite.
+        /// </summary>
         public readonly ISerializer Serializer;
+
+        /// <summary>
+        /// The transport will be used by Fluorite.
+        /// </summary>
         public readonly ITransport Transport;
 
+        /// <summary>
+        /// Constructor.
+        /// </summary>
+        /// <param name="serializer">Serializer instance</param>
+        /// <param name="transport">Transport instance</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private NestSettings(ISerializer serializer, ITransport transport)
         {
@@ -35,6 +50,12 @@ namespace Fluorite
             this.Transport = transport;
         }
 
+        /// <summary>
+        /// Create Fluorite nest setting instance.
+        /// </summary>
+        /// <param name="serializer">Serializer instance</param>
+        /// <param name="transport">Transport instance</param>
+        /// <returns>NestSettings</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static NestSettings Create(ISerializer serializer, ITransport transport) =>
             new NestSettings(serializer, transport);

@@ -29,9 +29,9 @@ namespace Fluorite.Internal
 {
     internal abstract class MethodStub
     {
+        private protected SynchronizationContext? synchContext;
         private protected IHost? host;
         private protected MethodInfo? method;
-        private protected SynchronizationContext? synchContext;
 
         public abstract ValueTask<object> InvokeAsync(IPayloadContainerView container);
 
@@ -46,10 +46,10 @@ namespace Fluorite.Internal
 
             var stubType = typeof(HostMethod<>).MakeGenericType(vtet);
             var stub = (MethodStub)Activator.CreateInstance(stubType)!;
-            
+
+            stub.synchContext = synchContext;
             stub.host = host;
             stub.method = method;
-            stub.synchContext = synchContext;
 
             return stub;
         }
@@ -63,35 +63,38 @@ namespace Fluorite.Internal
             Debug.Assert(this.method != null);
 
             // TODO: improve
-            var args = await Task.WhenAll(
-                this.method!.GetParameters().
-                    Select(p => container.DeserializeDataAsync(p.Position, p.ParameterType).AsTask())).
-                ConfigureAwait(false);
-
-            if (this.synchContext != null)
+            if (this.synchContext is { } synchContext &&
+                !object.ReferenceEquals(synchContext, SynchronizationContext.Current))
             {
-                var tcs = new TaskCompletionSource<object>();
+                var args = await Task.WhenAll(
+                    this.method!.GetParameters().
+                        Select(p => container.DeserializeBodyAsync(p.Position, p.ParameterType).AsTask())).
+                    ConfigureAwait(false);
 
-                this.synchContext.Post(async _ =>
+                var tcs = new TaskCompletionSource<TResult>();
+                synchContext.Post(async _ =>
                 {
                     try
                     {
-                        var result = (await ((ValueTask<TResult>)this.method.Invoke(this.host!, args)!).
-                            ConfigureAwait(false))!;
+                        var result = await ((ValueTask<TResult>)this.method.Invoke(this.host!, args)!).
+                            ConfigureAwait(false)!;
                         tcs.TrySetResult(result);
                     }
                     catch (Exception ex)
                     {
                         tcs.TrySetException(ex);
                     }
-                },
-                null);
+                }, null);
 
-                return await tcs.Task.
-                    ConfigureAwait(false);
+                return (await tcs.Task.
+                    ConfigureAwait(false))!;
             }
             else
             {
+                var args = await Task.WhenAll(
+                    this.method!.GetParameters().
+                        Select(p => container.DeserializeBodyAsync(p.Position, p.ParameterType).AsTask()));
+
                 return (await ((ValueTask<TResult>)this.method.Invoke(this.host!, args)!).
                     ConfigureAwait(false))!;
             }

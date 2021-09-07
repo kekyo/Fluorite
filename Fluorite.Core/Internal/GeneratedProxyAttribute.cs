@@ -22,6 +22,10 @@ using System.ComponentModel;
 
 namespace Fluorite.Internal
 {
+    /// <summary>
+    /// A marker base class of injected static proxy definitions.
+    /// </summary>
+    /// <remarks>Will be applied this attribute by automated proxy generator. (Fluorite.Build)</remarks>
     [EditorBrowsable(EditorBrowsableState.Never)]
     [AttributeUsage(AttributeTargets.Assembly)]   // HACK: refer AttributeUsage type from Fluorite.Build
     public abstract class GeneratedProxyAttribute : Attribute
@@ -29,13 +33,23 @@ namespace Fluorite.Internal
         private static volatile object locker = new object();
         private static volatile bool initialized;
 
+        /// <summary>
+        /// Constructor.
+        /// </summary>
         [EditorBrowsable(EditorBrowsableState.Never)]
         protected GeneratedProxyAttribute()
         {
         }
 
+        /// <summary>
+        /// Initialize static proxy.
+        /// </summary>
+        /// <remarks>Will be overrided by the proxy generator.</remarks>
         protected abstract void OnInitialize();
 
+        /// <summary>
+        /// Initialize static proxy.
+        /// </summary>
         [EditorBrowsable(EditorBrowsableState.Never)]
         public void Initialize()
         {

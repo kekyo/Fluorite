@@ -17,9 +17,9 @@
 //
 ////////////////////////////////////////////////////////////////////////////
 
+using Fluorite.Direct;
 using Fluorite.Json;
 using Fluorite.Serialization;
-using Fluorite.Transport;
 
 namespace Fluorite
 {
