@@ -19,7 +19,7 @@
 
 using Fluorite.Internal;
 using System;
-using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Net.WebSockets;
 using System.Threading;
@@ -29,55 +29,10 @@ namespace Fluorite.WebSockets
 {
     internal sealed class WebSocketController : IDisposable
     {
-        private sealed class SendQueue : IDisposable
-        {
-            private readonly Queue<ArraySegment<byte>> queue = new();
-            private readonly AsyncManualResetEvent available = new();
-
-            public void Dispose()
-            {
-                lock (this.queue)
-                {
-                    this.queue.Clear();
-                    this.available.Reset();
-                }
-            }
-
-            public void Enqueue(ArraySegment<byte> data)
-            {
-                lock (this.queue)
-                {
-                    this.queue.Enqueue(data);
-                    if (this.queue.Count == 1)
-                    {
-                        this.available.Set();
-                    }
-                }
-            }
-
-            public async Task<ArraySegment<byte>> DequeueAsync(CancellationToken token)
-            {
-                while (true)
-                {
-                    await this.available.WaitAsync(token).
-                        ConfigureAwait(false);
-
-                    lock (this.queue)
-                    {
-                        if (this.queue.Count >= 1)
-                        {
-                            return this.queue.Dequeue();
-                        }
-                        this.available.Reset();
-                    }
-                }
-            }
-        }
-
         private readonly WebSocket webSocket;
-        private readonly SendQueue sendQueue = new();
         private readonly WebSocketMessageType messageType;
         private readonly int bufferElementSize;
+        private readonly AsyncQueue<StreamBridge> bridgeQueue = new();
 
         public WebSocketController(
             WebSocket webSocket,
@@ -89,73 +44,181 @@ namespace Fluorite.WebSockets
             this.bufferElementSize = bufferElementSize;
         }
 
-        public void Dispose() =>
-            this.sendQueue.Dispose();
-
-        public void SendAsynchronously(ArraySegment<byte> data) =>
-            // Important: WebSocket couldn't multiple sending/receiving request at overlapped.
-            //   So will logical deadlock when requests multiple with awaiting.
-            //   WebSocket transport ignores awaiter, makes always fire-and-forget.
-            this.sendQueue.Enqueue(data);
-
-        public async ValueTask RunAsync(Func<Stream, ValueTask> action, Task shutdownTask)
+        public void Dispose()
         {
-            var cts = new CancellationTokenSource();
-            var buffer = new ExpandableBufferStream(this.bufferElementSize);
-
-            var receiveTask = this.webSocket.ReceiveAsync(buffer.GetPartialBuffer(), cts.Token);
-            var sendTask = sendQueue.DequeueAsync(cts.Token);
-
-            try
+            while (this.bridgeQueue.TryDequeue(out var bridge))
             {
+                bridge.Dispose();
+            }
+        }
+
+        public StreamBridge AllocateSenderStreamBridge()
+        {
+            var bridge = new StreamBridge();
+            this.bridgeQueue.Enqueue(bridge);
+            return bridge;
+        }
+
+        private async Task RunSenderAsync(
+            Task shutdownTask, TaskCompletionSource<bool> exitRequest, CancellationToken token)
+        {
+            var bridgeTask = this.bridgeQueue.DequeueAsync(token).
+                AsTask();
+
+            while (true)
+            {
+                var awakeTask = await Task.WhenAny(shutdownTask, exitRequest.Task, bridgeTask).
+                    ConfigureAwait(false);
+                if (object.ReferenceEquals(awakeTask, shutdownTask))
+                {
+                    await shutdownTask;   // Make completion
+
+                    bridgeTask.Discard();
+                    exitRequest.SetResult(true);   // Tell receiver.
+                    return;
+                }
+                if (object.ReferenceEquals(awakeTask, exitRequest.Task))
+                {
+                    await exitRequest.Task;   // Make completion
+
+                    bridgeTask.Discard();
+                    return;
+                }
+
+                Debug.Assert(object.ReferenceEquals(awakeTask, bridgeTask));
+
+                var bridge = await bridgeTask;
+                var sendTask = bridge.DequeueAsync(token).
+                    AsTask();
+
                 while (true)
                 {
-                    var awakeTask = await Task.WhenAny(shutdownTask, receiveTask, sendTask);
+                    awakeTask = await Task.WhenAny(shutdownTask, exitRequest.Task, sendTask).
+                        ConfigureAwait(false);
                     if (object.ReferenceEquals(awakeTask, shutdownTask))
                     {
                         await shutdownTask;   // Make completion
 
-                        receiveTask.Discard();
                         sendTask.Discard();
+                        exitRequest.TrySetResult(true);   // Tell receiver.
+                        return;
+                    }
+                    if (object.ReferenceEquals(awakeTask, exitRequest.Task))
+                    {
+                        await exitRequest.Task;   // Make completion
+
+                        sendTask.Discard();
+                        return;
+                    }
+
+                    var streamData = await sendTask;
+                    if (streamData == null)
+                    {
+                        // EOS
+                        await this.webSocket.SendAsync(
+                            new ArraySegment<byte>(new byte[0], 0, 0),
+                            this.messageType,
+                            true,
+                            token).
+                            ConfigureAwait(false);
                         break;
                     }
-                    else if (object.ReferenceEquals(awakeTask, sendTask))
-                    {
-                        var data = await sendTask;
-                        await this.webSocket.SendAsync(data, this.messageType, true, default);
 
-                        sendTask = sendQueue.DequeueAsync(cts.Token);
+                    try
+                    {
+                        await this.webSocket.SendAsync(
+                            streamData.GetData(),
+                            this.messageType,
+                            false,
+                            token).
+                            ConfigureAwait(false);
+                        streamData.SetCompleted();
                     }
-                    else
+                    catch (Exception ex)
                     {
-                        var result = await receiveTask;
-                        if (result.MessageType == this.messageType)
-                        {
-                            buffer.CommitPartialBuffer(result.Count);
+                        streamData.SetException(ex);
+                    }
 
-                            if (result.EndOfMessage)
-                            {
-                                buffer.ReadyToRead();
+                    sendTask = bridge.DequeueAsync(token).
+                        AsTask();
+                }
 
-                                await action(buffer);
+                bridgeTask = this.bridgeQueue.DequeueAsync(token).
+                    AsTask();
+            }
+        }
 
-                                buffer = new ExpandableBufferStream(this.bufferElementSize);
-                            }
-                        }
+        private async Task RunReceiverAsync(
+            Func<Stream, ValueTask> action, Task shutdownTask, TaskCompletionSource<bool> exitRequest, CancellationToken token)
+        {
+            var buffer = new ExpandableBufferStream(this.bufferElementSize);
 
-                        if (result.CloseStatus != default)
-                        {
-                            sendTask.Discard();
-                            shutdownTask.Discard();
-                            break;
-                        }
+            var receiveTask = this.webSocket.ReceiveAsync(buffer.GetPartialBuffer(), token);
 
-                        receiveTask = this.webSocket.ReceiveAsync(buffer.GetPartialBuffer(), cts.Token);
+            while (true)
+            {
+                var awakeTask = await Task.WhenAny(shutdownTask, exitRequest.Task, receiveTask).
+                    ConfigureAwait(false);
+                if (object.ReferenceEquals(awakeTask, shutdownTask))
+                {
+                    await shutdownTask;   // Make completion
+
+                    receiveTask.Discard();
+                    exitRequest.TrySetResult(true);   // Tell sender.
+                    return;
+                }
+                if (object.ReferenceEquals(awakeTask, exitRequest.Task))
+                {
+                    await exitRequest.Task;   // Make completion
+
+                    receiveTask.Discard();
+                    return;
+                }
+
+                Debug.Assert(object.ReferenceEquals(awakeTask, receiveTask));
+
+                var result = await receiveTask;
+                if (result.MessageType == this.messageType)
+                {
+                    buffer.CommitPartialBuffer(result.Count);
+
+                    if (result.EndOfMessage)
+                    {
+                        buffer.ReadyToRead();
+
+                        await action(buffer);
+
+                        buffer = new ExpandableBufferStream(this.bufferElementSize);
                     }
                 }
 
+                if (result.CloseStatus != default)
+                {
+                    shutdownTask.Discard();
+                    exitRequest.TrySetResult(true);   // Tell receiver.
+                    return;
+                }
+
+                receiveTask = this.webSocket.ReceiveAsync(buffer.GetPartialBuffer(), token);
+            }
+        }
+
+        public async ValueTask RunAsync(Func<Stream, ValueTask> action, Task shutdownTask)
+        {
+            var cts = new CancellationTokenSource();
+
+            try
+            {
+                var exitRequest = new TaskCompletionSource<bool>();
+
+                await Task.WhenAll(
+                    this.RunSenderAsync(shutdownTask, exitRequest, cts.Token),
+                    this.RunReceiverAsync(action, shutdownTask, exitRequest, cts.Token)).
+                    ConfigureAwait(false);
+
                 try
                 {
+                    // Feather shutdown.
                     await this.webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "", default).
                         ConfigureAwait(false);
                 }
@@ -166,6 +229,8 @@ namespace Fluorite.WebSockets
             }
             finally
             {
+                // Force discards non feather shutdowned resources.
+                // (Will sink into Task.Discard)
                 cts.Cancel();
             }
         }

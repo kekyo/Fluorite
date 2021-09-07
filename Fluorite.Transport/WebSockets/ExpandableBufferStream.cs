@@ -23,10 +23,9 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Fluorite.Internal
+namespace Fluorite.WebSockets
 {
-    internal sealed class ExpandableBufferStream :
-        Stream
+    internal sealed class ExpandableBufferStream : Stream
     {
         private readonly int bufferElementSize;
         private byte[] buffer;

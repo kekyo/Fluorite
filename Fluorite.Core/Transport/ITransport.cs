@@ -46,9 +46,9 @@ namespace Fluorite.Transport
         void SetPayloadContentType(string contentType);
 
         /// <summary>
-        /// Send peer with raw data.
+        /// Get sender stream.
         /// </summary>
-        /// <param name="data">Raw data</param>
-        ValueTask SendAsync(ArraySegment<byte> data);
+        /// <returns>Stream</returns>
+        ValueTask<Stream> GetSenderStreamAsync();
     }
 }

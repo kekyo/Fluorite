@@ -41,7 +41,7 @@ namespace Fluorite
         private readonly IPeerProxyFactory factory;
 
         private readonly Dictionary<string, MethodStub> stubs = new();
-        private readonly Dictionary<Guid, Awaiter> awaiters = new();
+        private readonly Dictionary<Guid, InvokingAwaiter> awaiters = new();
 
         private ITransport? transport;
 
@@ -149,10 +149,7 @@ namespace Fluorite
 
             var requestIdentity = Guid.NewGuid();
 
-            var ms = new MemoryStream();
-            await this.serializer.SerializeAsync(ms, requestIdentity, methodIdentity, args!);
-
-            var awaiter = new Awaiter<TResult>();
+            var awaiter = new InvokingAwaiter<TResult>();
             lock (this.awaiters)
             {
                 this.awaiters.Add(requestIdentity, awaiter);
@@ -160,8 +157,11 @@ namespace Fluorite
 
             try
             {
-                await this.transport!.SendAsync(new ArraySegment<byte>(ms.ToArray())).
-                    ConfigureAwait(false);
+                using (var stream = await this.transport!.GetSenderStreamAsync())
+                {
+                    await this.serializer.SerializeAsync(stream, requestIdentity, methodIdentity, args!);
+                    await stream.FlushAsync();
+                }
             }
             catch
             {
@@ -182,7 +182,7 @@ namespace Fluorite
         /// <param name="container">Received payload container</param>
         /// <param name="awaiter">Awaiter</param>
         private static async ValueTask AcceptAwaiterAsync(
-            IPayloadContainerView container, Awaiter awaiter)
+            IPayloadContainerView container, InvokingAwaiter awaiter)
         {
             Debug.Assert(container.DataCount == 1);
 
@@ -236,18 +236,20 @@ namespace Fluorite
                     name = "Exception";
                 }
 
-                var ms = new MemoryStream();
-                await this.serializer.SerializeAsync(ms, container.RequestIdentity, name, new[] { result });
-                await this.transport!.SendAsync(new ArraySegment<byte>(ms.ToArray())).
-                    ConfigureAwait(false);
+                using (var stream = await this.transport!.GetSenderStreamAsync())
+                {
+                    await this.serializer.SerializeAsync(stream, container.RequestIdentity, name, new[] { result });
+                    await stream.FlushAsync();
+                }
             }
             // Will ignore sprious (Already abandoned awaiter)
             else if ((container.MethodIdentity != "Result") && (container.MethodIdentity != "Exception"))
             {
-                var ms = new MemoryStream();
-                await this.serializer.SerializeAsync(ms, container.RequestIdentity, "Exception", new[] { "Method not found." });
-                await this.transport!.SendAsync(new ArraySegment<byte>(ms.ToArray())).
-                    ConfigureAwait(false);
+                using (var stream = await this.transport!.GetSenderStreamAsync())
+                {
+                    await this.serializer.SerializeAsync(stream, container.RequestIdentity, "Exception", new[] { "Method not found." });
+                    await stream.FlushAsync();
+                }
             }
         }
 
@@ -259,7 +261,7 @@ namespace Fluorite
         {
             var container = await this.serializer.DeserializeAsync(readFrom);
 
-            Awaiter? awaiter = null;
+            InvokingAwaiter? awaiter = null;
             lock (this.awaiters)
             {
                 if (this.awaiters.TryGetValue(container.RequestIdentity, out awaiter))

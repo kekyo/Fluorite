@@ -102,16 +102,16 @@ namespace Fluorite.Transport
         }
 
         /// <summary>
-        /// Calling when send peer with raw data.
+        /// Calling when get sender stream.
         /// </summary>
-        /// <param name="data">Raw data</param>
-        protected abstract ValueTask OnSendAsync(ArraySegment<byte> data);
+        /// <returns>Stream</returns>
+        protected abstract ValueTask<Stream> OnGetSenderStreamAsync();
 
         /// <summary>
-        /// Send peer with raw data.
+        /// Get sender stream.
         /// </summary>
-        /// <param name="data">Raw data</param>
-        ValueTask ITransport.SendAsync(ArraySegment<byte> data) =>
-            this.OnSendAsync(data);
+        /// <returns>Stream</returns>
+        ValueTask<Stream> ITransport.GetSenderStreamAsync() =>
+            this.OnGetSenderStreamAsync();
     }
 }

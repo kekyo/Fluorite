@@ -18,24 +18,36 @@
 ////////////////////////////////////////////////////////////////////////////
 
 using System;
-using System.Diagnostics;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Fluorite.Internal
 {
-    /// <summary>
-    /// Task extensions.
-    /// </summary>
-    internal static class TaskExtension
+    internal sealed class StreamBridge : IDisposable
     {
-        private static readonly Action<Task> empty = 
-            task => Debug.WriteLine($"Task.Discard: Discarded: {task.ToString()}");
+        private readonly AsyncQueue<StreamData?> queue = new();
 
-        /// <summary>
-        /// Safely discarding a task.
-        /// </summary>
-        /// <param name="task">Task</param>
-        public static void Discard(this Task task) =>
-            task.ContinueWith(empty);
+        public void Dispose()
+        {
+            while (this.queue.TryDequeue(out var streamData))
+            {
+                streamData?.Dispose();
+            }
+        }
+
+        public void Enqueue(StreamData streamData) =>
+            this.queue.Enqueue(streamData);
+
+        public void Finished() =>
+            this.queue.Enqueue(null);
+
+        public ValueTask<StreamData?> PeekAsync(CancellationToken token) =>
+            this.queue.PeekAsync(token);
+
+        public ValueTask<StreamData?> DequeueAsync(CancellationToken token) =>
+            this.queue.DequeueAsync(token);
+
+        public bool TryDequeue(out StreamData? streamData) =>
+            this.queue.TryDequeue(out streamData);
     }
 }

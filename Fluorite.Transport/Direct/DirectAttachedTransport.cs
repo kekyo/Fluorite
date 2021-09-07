@@ -17,11 +17,14 @@
 //
 ////////////////////////////////////////////////////////////////////////////
 
+using Fluorite.Internal;
+using Fluorite.Transport;
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Threading.Tasks;
 
-namespace Fluorite.Transport
+namespace Fluorite.Direct
 {
     public struct DirectAttachedTransportPair
     {
@@ -43,8 +46,30 @@ namespace Fluorite.Transport
         {
         }
 
-        protected override ValueTask OnSendAsync(ArraySegment<byte> data) =>
-            this.peer!.OnReceivedAsync(new MemoryStream(data.Array!, data.Offset, data.Count));
+        /// <summary>
+        /// Calling when get sender stream.
+        /// </summary>
+        /// <returns>Stream</returns>
+        protected override ValueTask<Stream> OnGetSenderStreamAsync()
+        {
+            var pair = PipelinedStream.Create();
+
+            async void RunReceivedAsynchronously(Stream fromRead)
+            {
+                try
+                {
+                    await this.peer!.OnReceivedAsync(fromRead).
+                        ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine(ex);
+                }
+            }
+
+            RunReceivedAsynchronously(pair.FromRead);
+            return new ValueTask<Stream>(pair.ToWrite);
+        }
 
         public static DirectAttachedTransportPair Create()
         {

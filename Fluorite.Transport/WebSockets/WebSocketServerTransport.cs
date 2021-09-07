@@ -22,6 +22,8 @@ using Fluorite.Transport;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
+using System.Linq;
 using System.Net;
 using System.Net.WebSockets;
 using System.Runtime.CompilerServices;
@@ -98,7 +100,8 @@ namespace Fluorite.WebSockets
                 var acceptWebSocketTask = httpContext.AcceptWebSocketAsync(null!);
                 var shutdownTask = this.shutdown!.Task;
 
-                var awakeTask = await Task.WhenAny(acceptWebSocketTask, shutdownTask);
+                var awakeTask = await Task.WhenAny(acceptWebSocketTask, shutdownTask).
+                    ConfigureAwait(false);
                 if (object.ReferenceEquals(awakeTask, shutdownTask))
                 {
                     await shutdownTask;
@@ -108,7 +111,8 @@ namespace Fluorite.WebSockets
 
                 var webSocketContext = await acceptWebSocketTask;
 
-                await this.PumpAsync(webSocketContext.WebSocket, shutdownTask);
+                await this.PumpAsync(webSocketContext.WebSocket, shutdownTask).
+                    ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -141,7 +145,8 @@ namespace Fluorite.WebSockets
 
                 while (true)
                 {
-                    var awakeTask = await Task.WhenAny(getContextTask, shutdownTask);
+                    var awakeTask = await Task.WhenAny(getContextTask, shutdownTask).
+                        ConfigureAwait(false);
                     if (object.ReferenceEquals(awakeTask, shutdownTask))
                     {
                         await shutdownTask;
@@ -204,24 +209,27 @@ namespace Fluorite.WebSockets
             this.done = null;
         }
 
-        protected override ValueTask OnSendAsync(ArraySegment<byte> data)
+        protected override ValueTask<Stream> OnGetSenderStreamAsync()
         {
             if (this.httpListener is { })
             {
+                WebSocketController[] controllers;
                 lock (this.connections)
                 {
-                    foreach (var controller in this.connections.Values)
-                    {
-                        controller.SendAsynchronously(data);
-                    }
+                    controllers = this.connections.Values.
+                        ToArray();
                 }
 
-                return default;
+                if (controllers.Length >= 1)
+                {
+                    var bridges = controllers.
+                        Select(controller => controller.AllocateSenderStreamBridge()).
+                        ToArray();
+                    return new ValueTask<Stream>(new SenderStream(bridges));
+                }
             }
-            else
-            {
-                throw new ObjectDisposedException("WebSocketServerTransport already shutdowned.");
-            }
+
+            throw new ObjectDisposedException("WebSocketServerTransport already shutdowned.");
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

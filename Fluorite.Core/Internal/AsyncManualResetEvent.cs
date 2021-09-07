@@ -19,12 +19,14 @@
 
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Threading;
 using System.Threading.Tasks;
 
 namespace Fluorite.Internal
 {
-    internal sealed class AsyncManualResetEvent
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public sealed class AsyncManualResetEvent
     {
         private sealed class Awaiting : IDisposable
         {
@@ -34,14 +36,20 @@ namespace Fluorite.Internal
             public Awaiting(CancellationToken token) =>
                 this.registration = token.Register(() => this.tcs.TrySetCanceled());
 
-            public void Dispose() =>
+            public void Dispose()
+            {
+                this.tcs.TrySetCanceled();
                 this.registration.Dispose();
+            }
 
             public Task Task =>
                 this.tcs.Task;
 
-            public void MarkCompleted() =>
+            public void MarkCompleted()
+            {
                 this.tcs.TrySetResult(true);
+                this.registration.Dispose();
+            }
         }
 
         private readonly List<Awaiting> awaitings = new();
@@ -69,10 +77,10 @@ namespace Fluorite.Internal
 
         public ValueTask WaitAsync(CancellationToken token)
         {
+            token.ThrowIfCancellationRequested();
+
             lock (this.awaitings)
             {
-                token.ThrowIfCancellationRequested();
-
                 if (this.signaled)
                 {
                     return default;
@@ -81,9 +89,14 @@ namespace Fluorite.Internal
                 var awaiting = new Awaiting(token);
                 this.awaitings.Add(awaiting);
 
-
                 return new ValueTask(awaiting.Task);
             }
         }
+
+        public void UnsafeWait() =>
+            this.WaitAsync(default).
+            ConfigureAwait(false).
+            GetAwaiter().
+            GetResult();
     }
 }

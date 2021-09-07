@@ -19,4 +19,5 @@
 
 using System.Runtime.CompilerServices;
 
+[assembly: InternalsVisibleTo("Fluorite.Transport")]
 [assembly: InternalsVisibleTo("Fluorite.Dynamic")]

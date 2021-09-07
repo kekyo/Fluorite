@@ -20,6 +20,7 @@
 using Fluorite.Transport;
 using System;
 using System.Diagnostics;
+using System.IO;
 using System.Net;
 using System.Net.WebSockets;
 using System.Runtime.CompilerServices;
@@ -61,7 +62,8 @@ namespace Fluorite.WebSockets
                     try
                     {
                         var shutdownTask = this.shutdown!.Task;
-                        await this.controller.RunAsync(this.OnReceivedAsync, shutdownTask);
+                        await this.controller.RunAsync(this.OnReceivedAsync, shutdownTask).
+                            ConfigureAwait(false); ;
                     }
                     catch (Exception ex)
                     {
@@ -72,6 +74,10 @@ namespace Fluorite.WebSockets
                         this.webSocket!.Dispose();
                     }
                 }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine(ex);
             }
             finally
             {
@@ -103,7 +109,8 @@ namespace Fluorite.WebSockets
             this.done = new();
             this.webSocket = new();
 
-            await this.webSocket.ConnectAsync(serverEndPoint, default);
+            await this.webSocket.ConnectAsync(serverEndPoint, default).
+                ConfigureAwait(false);
 
             this.ProceedReceivingAsynchronously();
         }
@@ -118,7 +125,8 @@ namespace Fluorite.WebSockets
 
             try
             {
-                await this.done!.Task;
+                await this.done!.Task.
+                    ConfigureAwait(false);
             }
             finally
             {
@@ -130,12 +138,12 @@ namespace Fluorite.WebSockets
             }
         }
 
-        protected override ValueTask OnSendAsync(ArraySegment<byte> data)
+        protected override ValueTask<Stream> OnGetSenderStreamAsync()
         {
             if (this.controller is { } controller)
             {
-                this.controller!.SendAsynchronously(data);
-                return default;
+                var bridge = controller.AllocateSenderStreamBridge();
+                return new ValueTask<Stream>(new SenderStream(new[] { bridge }));
             }
             else
             {
