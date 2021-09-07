@@ -19,8 +19,17 @@
 
 namespace Fluorite.Proxy
 {
+    /// <summary>
+    /// Fluorite transparent proxy factory interface.
+    /// </summary>
     public interface IPeerProxyFactory
     {
+        /// <summary>
+        /// Create transparent proxy instance.
+        /// </summary>
+        /// <typeparam name="TPeer">Exposed interface type</typeparam>
+        /// <param name="nest">Nest instance</param>
+        /// <returns>Proxy instance</returns>
         TPeer CreateInstance<TPeer>(Nest nest)
             where TPeer : class, IHost;
     }

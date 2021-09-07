@@ -32,22 +32,22 @@ namespace Fluorite.Json
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public JsonContainer(Guid requestIdentity, string methodIdentity, object payload) :
+        public JsonContainer(Guid requestIdentity, string methodIdentity, object body) :
             base(requestIdentity, methodIdentity) =>
-            this.Payload = payload;
+            this.Body = body;
 
-        public object? Payload { get; set; }
+        public object? Body { get; set; }
 
-        public override int DataCount =>
-            this.Payload is Newtonsoft.Json.Linq.JArray array ?
+        public override int BodyCount =>
+            this.Body is Newtonsoft.Json.Linq.JArray array ?
                 array.Count :
                 1;
 
-        public override ValueTask<object?> DeserializeDataAsync(int index, Type type) =>
+        public override ValueTask<object?> DeserializeBodyAsync(int bodyIndex, Type type) =>
             new ValueTask<object?>(
-                this.Payload switch
+                this.Body switch
                 {
-                    Newtonsoft.Json.Linq.JArray array => array[index].ToObject(type)!,
+                    Newtonsoft.Json.Linq.JArray array => array[bodyIndex].ToObject(type)!,
                     Newtonsoft.Json.Linq.JToken token => token.ToObject(type),
                     _ => null!
                 });

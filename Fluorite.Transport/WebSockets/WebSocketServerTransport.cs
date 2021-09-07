@@ -32,6 +32,9 @@ using System.Threading.Tasks;
 
 namespace Fluorite.WebSockets
 {
+    /// <summary>
+    /// Fluorite WebSocket transport implementation for server side.
+    /// </summary>
     public sealed class WebSocketServerTransport :
         TransportBase
     {
@@ -45,6 +48,9 @@ namespace Fluorite.WebSockets
         private volatile int concurrentCount;
         private WebSocketMessageType messageType = WebSocketMessageType.Text;
 
+        /// <summary>
+        /// Constructor.
+        /// </summary>
         private WebSocketServerTransport()
         {
         }
@@ -174,9 +180,18 @@ namespace Fluorite.WebSockets
             }
         }
 
+        /// <summary>
+        /// Start WebSocket server concurrently.
+        /// </summary>
+        /// <param name="serverPort">WebSocket server port</param>
+        /// <param name="requiredSecureConnection">Will accept when secure connection is enabled</param>
         public void Start(int serverPort, bool requiredSecureConnection) =>
             this.Start($"{(requiredSecureConnection ? "https" : "http")}://+:{serverPort}/");
 
+        /// <summary>
+        /// Start WebSocket server concurrently.
+        /// </summary>
+        /// <param name="endPointUrl">WebSocket server endpoint</param>
         public void Start(string endPointUrl)
         {
             Debug.Assert(this.httpListener == null);
@@ -192,6 +207,9 @@ namespace Fluorite.WebSockets
             this.ListenAsynchronously();
         }
 
+        /// <summary>
+        /// Calling when shutdown sequence.
+        /// </summary>
         protected override async ValueTask OnShutdownAsync()
         {
             Debug.Assert(this.httpListener != null);
@@ -209,10 +227,15 @@ namespace Fluorite.WebSockets
             this.done = null;
         }
 
+        /// <summary>
+        /// Calling when get sender stream.
+        /// </summary>
+        /// <returns>Stream</returns>
         protected override ValueTask<Stream> OnGetSenderStreamAsync()
         {
             if (this.httpListener is { })
             {
+                // TODO: Broadcast all connections.
                 WebSocketController[] controllers;
                 lock (this.connections)
                 {
@@ -232,6 +255,10 @@ namespace Fluorite.WebSockets
             throw new ObjectDisposedException("WebSocketServerTransport already shutdowned.");
         }
 
+        /// <summary>
+        /// Create WebSocket transport instance.
+        /// </summary>
+        /// <returns>WebSocketServerTransport</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static WebSocketServerTransport Create() =>
             new WebSocketServerTransport();

@@ -21,10 +21,16 @@ using System.Runtime.CompilerServices;
 
 namespace Fluorite.Proxy
 {
+    /// <summary>
+    /// Multi purpose standard transparent proxy base class.
+    /// </summary>
     public abstract class ProxyBase : IHost
     {
         internal Nest? nest;
 
+        /// <summary>
+        /// Constructor.
+        /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private protected ProxyBase()
         {

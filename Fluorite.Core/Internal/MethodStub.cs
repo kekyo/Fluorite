@@ -68,7 +68,7 @@ namespace Fluorite.Internal
             {
                 var args = await Task.WhenAll(
                     this.method!.GetParameters().
-                        Select(p => container.DeserializeDataAsync(p.Position, p.ParameterType).AsTask())).
+                        Select(p => container.DeserializeBodyAsync(p.Position, p.ParameterType).AsTask())).
                     ConfigureAwait(false);
 
                 var tcs = new TaskCompletionSource<TResult>();
@@ -93,7 +93,7 @@ namespace Fluorite.Internal
             {
                 var args = await Task.WhenAll(
                     this.method!.GetParameters().
-                        Select(p => container.DeserializeDataAsync(p.Position, p.ParameterType).AsTask()));
+                        Select(p => container.DeserializeBodyAsync(p.Position, p.ParameterType).AsTask()));
 
                 return (await ((ValueTask<TResult>)this.method.Invoke(this.host!, args)!).
                     ConfigureAwait(false))!;

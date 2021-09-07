@@ -24,20 +24,38 @@ using System.Threading.Tasks;
 
 namespace Fluorite.Internal
 {
+    /// <summary>
+    /// Generated static transparent proxy base class.
+    /// </summary>
+    /// <remarks>Will be derived by proxy generator. (Fluorite.Build)</remarks>
     [EditorBrowsable(EditorBrowsableState.Never)]
     public abstract class GeneratedProxyBase : ProxyBase
     {
+        /// <summary>
+        /// Constructor.
+        /// </summary>
         [EditorBrowsable(EditorBrowsableState.Never)]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         protected GeneratedProxyBase()
         {
         }
 
+        /// <summary>
+        /// Invoke peer method.
+        /// </summary>
+        /// <typeparam name="TResult">Method return type</typeparam>
+        /// <param name="methodIdentity">Method identity</param>
+        /// <param name="args">Arguments</param>
+        /// <returns>Result</returns>
         [EditorBrowsable(EditorBrowsableState.Never)]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         protected ValueTask<TResult> InvokeAsync<TResult>(string methodIdentity, object[] args) =>
             this.nest!.InvokeAsync<TResult>(methodIdentity, args);
 
+        /// <summary>
+        /// Get a string reflect this instance.
+        /// </summary>
+        /// <returns>String</returns>
         public override string ToString() =>
             $"Fluorite generated proxy: {ProxyUtilities.GetInterfaceNames(this)}";
     }

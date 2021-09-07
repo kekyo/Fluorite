@@ -22,6 +22,9 @@ using System.Runtime.CompilerServices;
 
 namespace Fluorite
 {
+    /// <summary>
+    /// The unit. It will be deleted when supported void method.
+    /// </summary>
     public struct Unit : IEquatable<Unit>
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

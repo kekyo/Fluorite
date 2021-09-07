@@ -19,6 +19,10 @@
 
 namespace Fluorite
 {
+    /// <summary>
+    /// All exposed interface would be derived this interface.
+    /// </summary>
+    /// <remarks>Fluorite will find expose interface by this.</remarks>
     public interface IHost
     {
     }

@@ -33,9 +33,9 @@ namespace Fluorite.Json
         public string PayloadContentType =>
             "application/json";
 
-        public async ValueTask SerializeAsync(Stream writeTo, Guid requestIdentity, string methodIdentity, object payload)
+        public async ValueTask SerializeAsync(Stream writeTo, Guid requestIdentity, string methodIdentity, object body)
         {
-            var container = new JsonContainer(requestIdentity, methodIdentity, payload);
+            var container = new JsonContainer(requestIdentity, methodIdentity, body);
             var jtoken = Newtonsoft.Json.Linq.JToken.FromObject(container);
 
             var tw = new StreamWriter(writeTo);   // Suppressed BOM UTF8

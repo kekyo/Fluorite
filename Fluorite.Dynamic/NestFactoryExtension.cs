@@ -28,23 +28,46 @@ using System.Net;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 
+#pragma warning disable 1573
+
 namespace Fluorite
 {
     public static class NestFactoryExtension
     {
+        /// <summary>
+        /// Initialize Fluorite.
+        /// </summary>
         public static void Initialize(this NestFactory _) =>
             ProxyUtilities.MarkInitialized();
 
+        /// <summary>
+        /// Create the nest by defaulted setting.
+        /// </summary>
+        /// <param name="settings">Nest setting</param>
+        /// <returns>Nest</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Nest Create(
             this NestFactory _, NestSettings settings) =>
             _.Create(settings, DynamicProxyFactory.Instance);
 
+        /// <summary>
+        /// Create the nest with explicitly transport.
+        /// </summary>
+        /// <param name="transport">Transport</param>
+        /// <returns>Nest</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Nest Create(
             this NestFactory _, ITransport transport) =>
             _.Create(NestSettings.Create(JsonSerializer.Instance, transport));
 
+        /// <summary>
+        /// Create the nest and connect WebSocket server.
+        /// </summary>
+        /// <param name="serverAddress">WebSocket server address</param>
+        /// <param name="serverPort">WebSocket port</param>
+        /// <param name="performSecureConnection">Perform secure connection when available</param>
+        /// <param name="registeringObjects">Expose objects</param>
+        /// <returns>Nest</returns>
         public static async ValueTask<Nest> ConnectAsync(
             this NestFactory _, string serverAddress, int serverPort, bool performSecureConnection, params IHost[] registeringObjects)
         {
@@ -58,6 +81,13 @@ namespace Fluorite
             return nest;
         }
 
+        /// <summary>
+        /// Create the nest and connect WebSocket server.
+        /// </summary>
+        /// <param name="serverEndPoint">WebSocket server endpoint</param>
+        /// <param name="performSecureConnection">Perform secure connection when available</param>
+        /// <param name="registeringObjects">Expose objects</param>
+        /// <returns>Nest</returns>
         public static async ValueTask<Nest> ConnectAsync(
             this NestFactory _, EndPoint serverEndPoint, bool performSecureConnection, params IHost[] registeringObjects)
         {
@@ -71,6 +101,12 @@ namespace Fluorite
             return nest;
         }
 
+        /// <summary>
+        /// Create the nest and connect WebSocket server.
+        /// </summary>
+        /// <param name="serverEndPoint">WebSocket server endpoint</param>
+        /// <param name="registeringObjects">Expose objects</param>
+        /// <returns>Nest</returns>
         public static async ValueTask<Nest> ConnectAsync(
             this NestFactory _, Uri serverEndPoint, params IHost[] registeringObjects)
         {
@@ -84,6 +120,13 @@ namespace Fluorite
             return nest;
         }
 
+        /// <summary>
+        /// Create the nest and produce WebSocket server.
+        /// </summary>
+        /// <param name="serverPort">WebSocket server port</param>
+        /// <param name="requiredSecureConnection">Will accept when secure connection is enabled</param>
+        /// <param name="registeringObjects">Expose objects</param>
+        /// <returns>Nest</returns>
         public static Nest StartServer(
             this NestFactory _, int serverPort, bool requiredSecureConnection, params IHost[] registeringObjects)
         {
@@ -98,6 +141,12 @@ namespace Fluorite
 
         }
 
+        /// <summary>
+        /// Create the nest and produce WebSocket server.
+        /// </summary>
+        /// <param name="listenEndPointUrl">WebSocket server endpoint</param>
+        /// <param name="registeringObjects">Expose objects</param>
+        /// <returns>Nest</returns>
         public static Nest StartServer(
             this NestFactory _, string listenEndPointUrl, params IHost[] registeringObjects)
         {

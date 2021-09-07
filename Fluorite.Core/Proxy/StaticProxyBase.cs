@@ -23,17 +23,35 @@ using System.Threading.Tasks;
 
 namespace Fluorite.Proxy
 {
+    /// <summary>
+    /// Static transparent proxy base class.
+    /// </summary>
     public abstract class StaticProxyBase : ProxyBase
     {
+        /// <summary>
+        /// Constructor.
+        /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         protected StaticProxyBase()
         {
         }
 
+        /// <summary>
+        /// Invoke peer method.
+        /// </summary>
+        /// <typeparam name="TPeer">Target expose interface type</typeparam>
+        /// <typeparam name="TResult">Method return type</typeparam>
+        /// <param name="methodName">Method name</param>
+        /// <param name="args">Arguments</param>
+        /// <returns>Result</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         protected ValueTask<TResult> InvokeAsync<TPeer, TResult>(string methodName, params object[] args) =>
             this.nest!.InvokeAsync<TResult>(ProxyUtilities.GetMethodIdentity<TPeer>(methodName), args);
 
+        /// <summary>
+        /// Get a string reflect this instance.
+        /// </summary>
+        /// <returns>String</returns>
         public override string ToString() =>
             $"Fluorite static proxy: {ProxyUtilities.GetInterfaceNames(this)}";
     }
