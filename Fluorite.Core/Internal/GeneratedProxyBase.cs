@@ -53,6 +53,16 @@ namespace Fluorite.Internal
             this.nest!.InvokeAsync<TResult>(methodIdentity, args);
 
         /// <summary>
+        /// Invoke peer method.
+        /// </summary>
+        /// <param name="methodIdentity">Method identity</param>
+        /// <param name="args">Arguments</param>
+        [EditorBrowsable(EditorBrowsableState.Never)]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        protected ValueTask InvokeAsync(string methodIdentity, object[] args) =>
+            this.nest!.InvokeAsync(methodIdentity, args);
+
+        /// <summary>
         /// Get a string reflect this instance.
         /// </summary>
         /// <returns>String</returns>

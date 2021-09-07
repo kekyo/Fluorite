@@ -1,8 +1,8 @@
 {
   "profiles": {
     "Fluorite.Build": {
-      "commandName": "Project",
-      "commandLineArgs": "-gp ../../../../Fluorite.Tests/bin/Debug/net45 ../../../../Fluorite.Tests/bin/Debug/net45/Fluorite.Tests.dll"
+        "commandName": "Project",
+        "commandLineArgs": "-gp ../../../../Fluorite.Dynamic.Tests/bin/Debug/net45 ../../../../Fluorite.Dynamic.Tests/bin/Debug/net45/Fluorite.Dynamic.Tests.dll"
     }
   }
 }

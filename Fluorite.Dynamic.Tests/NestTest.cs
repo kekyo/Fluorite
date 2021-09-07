@@ -57,6 +57,11 @@ namespace Fluorite
             ValueTask<byte[]> Test1Async(int arg0, string arg1, DateTime arg2);
         }
 
+        public interface ITestInterface6 : IHost
+        {
+            ValueTask Test1Async(int arg0, string arg1, DateTime arg2);
+        }
+
         public sealed class TestClass11 : ITestInterface1
         {
             public ValueTask<string> Test1Async(int arg0, string arg1, DateTime arg2)
@@ -162,6 +167,18 @@ namespace Fluorite
 
             public ValueTask<byte[]> Test1Async(int arg0, string arg1, DateTime arg2) =>
                 new ValueTask<byte[]>(Create(arg0, arg1, arg2));
+        }
+
+        public sealed class TestClass8 : ITestInterface6
+        {
+            public string? Value;
+
+            public async ValueTask Test1Async(int arg0, string arg1, DateTime arg2)
+            {
+                this.Value = "AAA";
+                await Task.Delay(500);
+                this.Value = $"6: {arg0} - {arg1} - {arg2}";
+            }
         }
 
         [SetUp]
@@ -546,6 +563,19 @@ namespace Fluorite
 
             var data = TestClass7.Create(300, "ABC", now);
             Assert.AreEqual(data, result);
+        }
+
+        [Test]
+        public async Task InvokeVoidReturn()
+        {
+            var (server, client) = Utilities.CreateDirectAttachedNestPair();
+            var t = new TestClass8();
+            server.Register(t);
+
+            var now = DateTime.Now;
+            await client.GetPeer<ITestInterface6>().Test1Async(123, "ABC", now);
+
+            Assert.AreEqual($"6: 123 - ABC - {now}", t.Value);
         }
     }
 }

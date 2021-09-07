@@ -49,6 +49,17 @@ namespace Fluorite.Proxy
             this.nest!.InvokeAsync<TResult>(ProxyUtilities.GetMethodIdentity<TPeer>(methodName), args);
 
         /// <summary>
+        /// Invoke peer method.
+        /// </summary>
+        /// <typeparam name="TPeer">Target expose interface type</typeparam>
+        /// <param name="methodName">Method name</param>
+        /// <param name="args">Arguments</param>
+        /// <returns>Result</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        protected ValueTask InvokeAsync<TPeer>(string methodName, params object[] args) =>
+            this.nest!.InvokeAsync(ProxyUtilities.GetMethodIdentity<TPeer>(methodName), args);
+
+        /// <summary>
         /// Get a string reflect this instance.
         /// </summary>
         /// <returns>String</returns>

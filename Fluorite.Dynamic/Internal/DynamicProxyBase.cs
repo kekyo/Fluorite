@@ -39,6 +39,11 @@ namespace Fluorite.Internal
             this.nest!.InvokeAsync<TResult>(methodIdentity, args);
 
         [EditorBrowsable(EditorBrowsableState.Never)]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        protected ValueTask InvokeAsync(string methodIdentity, object[] args) =>
+            this.nest!.InvokeAsync(methodIdentity, args);
+
+        [EditorBrowsable(EditorBrowsableState.Never)]
         public override string ToString() =>
             $"Fluorite dynamic proxy: {ProxyUtilities.GetInterfaceNames(this)}";
     }

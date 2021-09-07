@@ -27,9 +27,11 @@ namespace Fluorite.Internal
     public static class InternalDynamicProxyGenerator
     {
         private static readonly MethodInfo invokeAsyncMethodT =
-            typeof(DynamicProxyBase).GetMethod(
-                "InvokeAsync",
-                BindingFlags.NonPublic | BindingFlags.Instance)!;
+            typeof(DynamicProxyBase).GetMethods(BindingFlags.NonPublic | BindingFlags.Instance).
+                First(m => m.Name.StartsWith("InvokeAsync") && m.IsGenericMethod);
+        private static readonly MethodInfo invokeAsyncMethod =
+            typeof(DynamicProxyBase).GetMethods(BindingFlags.NonPublic | BindingFlags.Instance).
+                First(m => m.Name.StartsWith("InvokeAsync") && !m.IsGenericMethod);
         private static readonly ConstructorInfo peerProxyBaseConstructor =
             typeof(DynamicProxyBase).GetConstructor(
                 BindingFlags.NonPublic | BindingFlags.Instance,
@@ -98,10 +100,15 @@ namespace Fluorite.Internal
                     ilGenerator.Emit(OpCodes.Stelem_Ref);
                 }
 
-                var valueTaskElementType = method.ReturnType.GenericTypeArguments[0];
-                var invokeAsyncMethod =
-                    invokeAsyncMethodT.MakeGenericMethod(valueTaskElementType);
-                ilGenerator.Emit(OpCodes.Call, invokeAsyncMethod);
+                var valueTaskElementType = method.ReturnType.GenericTypeArguments.ElementAtOrDefault(0);
+                if (valueTaskElementType != null)
+                {
+                    ilGenerator.Emit(OpCodes.Call, invokeAsyncMethodT.MakeGenericMethod(valueTaskElementType));
+                }
+                else
+                {
+                    ilGenerator.Emit(OpCodes.Call, invokeAsyncMethod);
+                }
 
                 ilGenerator.Emit(OpCodes.Ret);
 

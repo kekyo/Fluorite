@@ -39,12 +39,28 @@ namespace Fluorite
     {
         private static readonly HashSet<string> excludeList = new (StringComparer.InvariantCultureIgnoreCase)
             {
+                "mscorlib.dll",
+                "System.dll",
+                "System.Core.dll",
+                "System.ValueTuple.dll",
+                "System.Threading.Tasks.Extensions.dll",
+                "System.Runtime.dll",
+                "System.Runtime.CompilerServices.Unsafe.dll",
+                "System.Memory.dll",
+                "System.Drawing.Common.dll",
+                "System.Data.Common.dll",
+                "System.Net.Http.dll",
+                "System.Reactive.dll",
+                "netstandard.dll",
+                "Microsoft.CodeAnalysis.dll",
+                "Microsoft.CodeAnalysis.CSharp.dll",
                 "Fluorite.dll",
                 "Fluorite.Core.dll",
                 "Fluorite.Serializer.dll",
                 "Fluorite.Transport.dll",
                 "Fluorite.Dynamic.dll",
-            };
+                "Newtonsoft.Json.dll",
+        };
 
         private readonly string targetAssemblyPath;
 
@@ -62,6 +78,7 @@ namespace Fluorite
 
         private readonly TypeDefinition generatedProxyBaseType;
         private readonly MethodDefinition generatedProxyBaseConstructor;
+        private readonly MethodDefinition invokeAsyncMethod;
         private readonly MethodDefinition invokeAsyncMethodT;
 
         private readonly TypeDefinition generatedProxyAttributeType;
@@ -109,7 +126,9 @@ namespace Fluorite
             this.generatedProxyBaseConstructor = this.generatedProxyBaseType.Methods.
                 First(m => m.IsConstructor);
             this.invokeAsyncMethodT = this.generatedProxyBaseType.Methods.
-                First(m => m.Name.StartsWith("InvokeAsync"));
+                First(m => m.Name.StartsWith("InvokeAsync") && m.HasGenericParameters);
+            this.invokeAsyncMethod = this.generatedProxyBaseType.Methods.
+                First(m => m.Name.StartsWith("InvokeAsync") && !m.HasGenericParameters);
             
             this.generatedProxyAttributeType = fluoriteCoreAssembly.MainModule.GetType(
                 "Fluorite.Internal.GeneratedProxyAttribute")!;
@@ -220,17 +239,11 @@ namespace Fluorite
                 if (!returnType.FullName.StartsWith("System.Threading.Tasks.ValueTask"))
                 {
                     throw new ArgumentException(
-                        $"Method doesn't have a ValueTask<T> return type: Target={targetType.FullName}.{method.Name}");
+                        $"Method doesn't have a ValueTask return type: Target={targetType.FullName}.{method.Name}");
                 }
 
-                var valueTaskElementType = ((GenericInstanceType)returnType).
-                    GenericArguments.FirstOrDefault();
-                // TODO: support non generic ValueTask
-                if (valueTaskElementType == null)
-                {
-                    throw new ArgumentException(
-                        $"Method doesn't have a ValueTask<T> return type: Target={targetType.FullName}.{method.Name}");
-                }
+                var valueTaskElementType = returnType is GenericInstanceType git ?
+                    git.GenericArguments.FirstOrDefault() : this.typeSystem.Void;
 
                 var proxyParameterTypes = method.Parameters.
                     Select(p => module.ImportReference(p.ParameterType)).
@@ -238,7 +251,7 @@ namespace Fluorite
                 var proxyMethod = new MethodDefinition(
                     method.Name,
                     MethodAttributes.Private | MethodAttributes.Final | MethodAttributes.HideBySig | MethodAttributes.NewSlot | MethodAttributes.Virtual,
-                    module.ImportReference(method.ReturnType));
+                    module.ImportReference(returnType));
                 foreach (var parameterType in proxyParameterTypes)
                 {
                     proxyMethod.Parameters.Add(new ParameterDefinition(parameterType));
@@ -270,11 +283,19 @@ namespace Fluorite
                     ilProcessor.Append(Instruction.Create(OpCodes.Stelem_Ref));
                 }
 
-                var invokeAsyncMethod = new GenericInstanceMethod(
-                    module.ImportReference(this.invokeAsyncMethodT));
-                invokeAsyncMethod.GenericArguments.Add(
-                    module.ImportReference(valueTaskElementType));
-                ilProcessor.Append(Instruction.Create(OpCodes.Call, invokeAsyncMethod));
+                if (valueTaskElementType != this.typeSystem.Void)
+                {
+                    var invokeAsyncMethod = new GenericInstanceMethod(
+                        module.ImportReference(this.invokeAsyncMethodT));
+                    invokeAsyncMethod.GenericArguments.Add(
+                        module.ImportReference(valueTaskElementType));
+                    ilProcessor.Append(Instruction.Create(OpCodes.Call, invokeAsyncMethod));
+                }
+                else
+                {
+                    var invokeAsyncMethod = module.ImportReference(this.invokeAsyncMethod);
+                    ilProcessor.Append(Instruction.Create(OpCodes.Call, invokeAsyncMethod));
+                }
 
                 ilProcessor.Append(Instruction.Create(OpCodes.Ret));
 

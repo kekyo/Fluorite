@@ -18,33 +18,25 @@
 ////////////////////////////////////////////////////////////////////////////
 
 using System;
-using System.Runtime.CompilerServices;
 
-namespace Fluorite
+namespace Fluorite.Internal
 {
     /// <summary>
-    /// The unit. It will be deleted when supported void method.
+    /// An type definition of nothing.
     /// </summary>
-    public struct Unit : IEquatable<Unit>
+    internal sealed class PlaceholderOfVoid
     {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private PlaceholderOfVoid()
+        {
+        }
+
         public override int GetHashCode() =>
-            0;
+            throw new InvalidOperationException();
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public override bool Equals(object? obj) =>
-            obj is Unit;
+            throw new InvalidOperationException();
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool Equals(Unit obj) =>
-            true;
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        bool IEquatable<Unit>.Equals(Unit other) =>
-            true;
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public override string ToString() =>
-            "()";
+            throw new InvalidOperationException();
     }
 }

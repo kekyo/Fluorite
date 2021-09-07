@@ -40,7 +40,7 @@ namespace Fluorite
         private readonly ISerializer serializer;
         private readonly IPeerProxyFactory factory;
 
-        private readonly Dictionary<string, MethodStub> stubs = new();
+        private readonly Dictionary<string, HostMethodBase> stubs = new();
         private readonly Dictionary<Guid, InvokingAwaiter> awaiters = new();
 
         private ITransport? transport;
@@ -112,7 +112,7 @@ namespace Fluorite
                     foreach (var method in type.GetMethods())
                     {
                         var identity = ProxyUtilities.GetMethodIdentity(type, method.Name);
-                        this.stubs.Add(identity, MethodStub.Create(host, method, synchContext));
+                        this.stubs.Add(identity, HostMethodBase.Create(host, method, synchContext));
                     }
                 }
             }
@@ -147,7 +147,7 @@ namespace Fluorite
         }
 
         ///////////////////////////////////////////////////////////////////////
-        // Proxy generator
+        // Transparent proxy
 
         /// <summary>
         /// Get transparent proxy instance by expose interface type.
@@ -160,22 +160,19 @@ namespace Fluorite
 
         ///////////////////////////////////////////////////////////////////////
         // RPC management
- 
+
         /// <summary>
         /// Lower level entry point from proxy interface.
         /// </summary>
         /// <typeparam name="TResult">Result type</typeparam>
+        /// <param name="awaiter">Target InvokingAwaiter</param>
         /// <param name="methodIdentity">Method (or status) identity</param>
         /// <param name="args">Additional arguments</param>
         /// <returns>Result value</returns>
-        internal async ValueTask<TResult> InvokeAsync<TResult>(string methodIdentity, object[] args)
+        private async ValueTask InvokeAsync<TResult>(
+            InvokingAwaiter awaiter, string methodIdentity, object[] args)
         {
-            Debug.Assert(!string.IsNullOrWhiteSpace(methodIdentity));
-            Debug.Assert(args != null);
-
             var requestIdentity = Guid.NewGuid();
-
-            var awaiter = new InvokingAwaiter<TResult>();
             lock (this.awaiters)
             {
                 this.awaiters.Add(requestIdentity, awaiter);
@@ -186,7 +183,7 @@ namespace Fluorite
                 using (var stream = await this.transport!.GetSenderStreamAsync().
                     ConfigureAwait(false))
                 {
-                    await this.serializer.SerializeAsync(stream, requestIdentity, methodIdentity, args!).
+                    await this.serializer.SerializeAsync(stream, requestIdentity, methodIdentity, args).
                         ConfigureAwait(false);
                     await stream.FlushAsync().
                         ConfigureAwait(false);
@@ -200,13 +197,52 @@ namespace Fluorite
                 }
                 throw;
             }
+        }
+
+        /// <summary>
+        /// Lower level entry point from proxy interface.
+        /// </summary>
+        /// <typeparam name="TResult">Result type</typeparam>
+        /// <param name="methodIdentity">Method (or status) identity</param>
+        /// <param name="args">Additional arguments</param>
+        /// <returns>Result value</returns>
+        internal async ValueTask<TResult> InvokeAsync<TResult>(
+            string methodIdentity, object[] args)
+        {
+            Debug.Assert(!string.IsNullOrWhiteSpace(methodIdentity));
+            Debug.Assert(args != null);
+
+            var awaiter = new InvokingAwaiter<TResult>();
+
+            await this.InvokeAsync<TResult>(awaiter, methodIdentity, args!).
+                ConfigureAwait(false);
 
             return await awaiter.Task.
                 ConfigureAwait(false);
         }
 
         /// <summary>
-        /// Received awaiter calling (on caller role).
+        /// Lower level entry point from proxy interface.
+        /// </summary>
+        /// <param name="methodIdentity">Method (or status) identity</param>
+        /// <param name="args">Additional arguments</param>
+        internal async ValueTask InvokeAsync(
+            string methodIdentity, object[] args)
+        {
+            Debug.Assert(!string.IsNullOrWhiteSpace(methodIdentity));
+            Debug.Assert(args != null);
+
+            var awaiter = new InvokingAwaiter<PlaceholderOfVoid>();
+
+            await this.InvokeAsync<PlaceholderOfVoid>(awaiter, methodIdentity, args!).
+                ConfigureAwait(false);
+
+            await awaiter.Task.
+                ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Received awaiter continuation (on caller role).
         /// </summary>
         /// <param name="container">Received payload container</param>
         /// <param name="awaiter">Awaiter</param>
@@ -244,7 +280,7 @@ namespace Fluorite
         /// <param name="container">Received payload container</param>
         private async ValueTask AcceptInvokingAsync(IPayloadContainerView container)
         {
-            MethodStub? hostMethod = null;
+            HostMethodBase? hostMethod = null;
             lock (this.stubs)
             {
                 this.stubs.TryGetValue(container.MethodIdentity, out hostMethod);
