@@ -78,7 +78,9 @@ NOTE: When running on Windows platform, you have to configure `HttpListener`/`HT
 We can use independent platform such as `netstandard2.0` or likes.
 
 ```csharp
-using Fluorite;  // nuget install Fluorite.Core
+// nuget install Fluorite
+// (or Fluorite.Build using static proxy generator)
+using Fluorite;
 
 // You can use custom types each arguments/return value, constraint depending used serializer.
 // (Default serializer is Newtonsoft.Json)
@@ -89,32 +91,38 @@ public sealed class Item
     public int Price;
 }
 
-// Require inherits `IHost` and method returns ValueTask<T>.
-public interface IShop : IHost
+// Require inherits `IHost` and method returns ValueTask<T> or ValueTask.
+public interface IPartsShop : IHost
 {
     ValueTask<Item[]> GetItemsAsync(string category, int max);
-    ValueTask<int> PurchaseAsync(params int[] itemIds);
+    ValueTask PurchaseAsync(params int[] itemIds);
 }
 ```
 
 ### Client side
 
 ```csharp
-using Fluorite;  // nuget install Fluorite.Dynamic
+// nuget install Fluorite
+using Fluorite;
 
-// Connect to server with default websocket/json transport.
+// Initialize
+Nest.Factory.Initialize();
+
+// Connect to server with default WebSocket/Json transport.
 // (Optional: You can register client side expose object at last arguments same as server side)
 var nest = await Nest.Factory.ConnectAsync("server.example.com", 4649, false);
 try
 {
-    var shop = nest.GetPeer<IShop>();
-    var items = await shop.GetItemsAsync("Fruit", 100);
+    // Get transparent proxy instance from the client nest.
+    var partsShop = nest.GetPeer<IPartsShop>();
 
-    var total = await shop.PurchaseAsync(items[3].Id);
-    Console.WriteLine(total);
+    // Manipulate via transparent proxy.
+    var items = await shop.GetItemsAsync("FPGA", 100);
+    await shop.PurchaseAsync(items[3].Id);
 }
 finally
 {
+    // Shutdown client nest
     await nest.ShutdownAsync();
 }
 ```
@@ -122,39 +130,113 @@ finally
 ### Server side
 
 ```csharp
-using Fluorite;  // nuget install Fluorite.Dynamic
+// nuget install Fluorite
+using Fluorite;
 
 // The exposed interface implementer.
-public sealed class Shop : IShop
+internal sealed class PartsShop : IPartsShop
 {
     public async ValueTask<Item[]> GetItemsAsync(string category, int max)
     {
         // ...
     }
 
-    public async ValueTask<int> PurchaseAsync(params int[] itemIds)
+    public async ValueTask PurchaseAsync(int[] itemIds)
     {
         // ...
     }
 }
 
-// Start default websocket/json server with expose objects at last arguments.
-var nest = await Nest.Factory.StartServer(4649, false, new Shop());
+// Initialize
+Nest.Factory.Initialize();
+
+// Start default WebSocket/Json server (at background)
+// with expose objects at last arguments.
+var nest = await Nest.Factory.StartServer(4649, false, new PartsShop());
 try
 {
     // ...
 }
 finally
 {
+    // Shutdown server nest
     await nest.ShutdownAsync();
 }
 ```
 
 -----
 
-## Static proxy generator
+## Transparent proxy
 
-TODO:
+Fluorite requires transparent proxy implementation. You can choice few implementation ways:
+
+* Automatic static proxy generator:
+  * `Fluorite.Build` (or `Fluorite`) package will generate automatically static transparent proxy class on your project.
+  * It's easy way and recommended.
+  * AOT environment friendly and fastest at runtime.
+  * But some .NET development environemnt couldn't use. Unity (Game engine) and others have unique way to build environment.
+* Dynamic proxy generator:
+  * `Fluorite.Dynamic` package will generate automatically dynamic transparent proxy class at on demand (runtime).
+  * Stable mostly environments.
+  * It's better performance, will use CIL/MSIL generator.
+  * Maybe couldn't use on AOT platform.
+* Self implements static proxy:
+  * Flexible and customizable.
+  * You dodge referring meta-package `Fluorite` or `Fluorite.Dynamic`. Will make decrease dependency only referring `Fluorite.Core`.
+  * Tired :)
+
+## Automatic static proxy generator (Fluorite.Build)
+
+You don't need anything. It's an example result:
+
+```csharp
+// It's automatically generated, you can see it by ILSpy and others.
+internal sealed class IPartsShopProxy__ :
+    GeneratedProxyBase, IPartsShop
+{
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public ValueTask<Item[]> GetItemsAsync(string category, int max)
+    {
+        return base.InvokeAsync<Item[]>("ExamplePartsShop.IPartsShop.GetItems", new object[2] { category, max });
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public ValueTask PurchaseAsync(int[] itemIds)
+    {
+        return base.InvokeAsync("ExamplePartsShop.IPartsShop.Purchase", new object[1] { itemIds });
+    }
+}
+```
+
+## Automatic dynamic proxy generator (use Fluorite.Dynamic)
+
+
+
+## Self implements static proxy
+
+You have to implement likes:
+
+```csharp
+// Hand coded static proxy class.
+internal sealed class PartsShopProxy :
+    StaticProxyBase, IPartsShop
+{
+    public ValueTask<Item[]> GetItemsAsync(string category, int max)
+    {
+        return base.InvokeAsync<IPartsShop, Item[]>("GetItems", category, max);
+    }
+
+    public ValueTask PurchaseAsync(int[] itemIds)
+    {
+        // HACK: Requires cast expression because will convert implicitly param array.
+        return base.InvokeAsync<IPartsShop>("Purchase", (object)itemIds);
+    }
+}
+
+// Register proxy class.
+Nest.Register<IPartsShop, PartsShopProxy>();
+```
+
 
 -----
 
@@ -177,3 +259,15 @@ TODO:
 ## License
 
 Apache-v2
+
+## History
+
+* 0.6.0:
+  * Reconstruct transport architecture overall transferring data with `Stream` asynchronously.
+  * Reconstruct transport architecture enabling truly full-duplex on WebSocket.
+* 0.5.0:
+  * Implemented static proxy generator at running build time (Fluorite.Build)
+* 0.2.0:
+  * Passed full-duplex, bi-directional tests.
+* 0.1.0:
+  * Initial version.
