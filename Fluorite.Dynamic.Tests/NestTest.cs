@@ -62,7 +62,7 @@ namespace Fluorite
             ValueTask Test1Async(int arg0, string arg1, DateTime arg2);
         }
 
-        public sealed class TestClass11 : ITestInterface1
+        public sealed class TestClass1_1 : ITestInterface1
         {
             public ValueTask<string> Test1Async(int arg0, string arg1, DateTime arg2)
             {
@@ -70,7 +70,7 @@ namespace Fluorite
             }
         }
 
-        public sealed class TestClass12 : ITestInterface1
+        public sealed class TestClass1_2 : ITestInterface1
         {
             public ValueTask<string> Test1Async(int arg0, string arg1, DateTime arg2)
             {
@@ -78,7 +78,7 @@ namespace Fluorite
             }
         }
 
-        public sealed class TestClass21 : ITestInterface2
+        public sealed class TestClass2_1 : ITestInterface2
         {
             public ValueTask<string> Test1Async(int arg0, string arg1, DateTime arg2)
             {
@@ -86,7 +86,7 @@ namespace Fluorite
             }
         }
 
-        public sealed class TestClass22 : ITestInterface2
+        public sealed class TestClass2_2 : ITestInterface2
         {
             public ValueTask<string> Test1Async(int arg0, string arg1, DateTime arg2)
             {
@@ -106,7 +106,7 @@ namespace Fluorite
             }
         }
 
-        public sealed class TestClass41 : ITestInterface1
+        public sealed class TestClass4_1 : ITestInterface1
         {
             public async ValueTask<string> Test1Async(int arg0, string arg1, DateTime arg2)
             {
@@ -115,7 +115,7 @@ namespace Fluorite
             }
         }
 
-        public sealed class TestClass42 : ITestInterface1
+        public sealed class TestClass4_2 : ITestInterface1
         {
             public async ValueTask<string> Test1Async(int arg0, string arg1, DateTime arg2)
             {
@@ -124,7 +124,7 @@ namespace Fluorite
             }
         }
 
-        public sealed class TestClass51 : ITestInterface1
+        public sealed class TestClass5_1 : ITestInterface1
         {
             public ValueTask<string> Test1Async(int arg0, string arg1, DateTime arg2)
             {
@@ -132,7 +132,7 @@ namespace Fluorite
             }
         }
 
-        public sealed class TestClass52 : ITestInterface1
+        public sealed class TestClass5_2 : ITestInterface1
         {
             public ValueTask<string> Test1Async(int arg0, string arg1, DateTime arg2)
             {
@@ -181,6 +181,40 @@ namespace Fluorite
             }
         }
 
+        public sealed class TestClass9_1 : ITestInterface1
+        {
+            public ValueTask<string> Test1Async(int arg0, string arg1, DateTime arg2)
+            {
+                throw new ArgumentException($"91: {arg0} - {arg1} - {arg2}");
+            }
+        }
+
+        public sealed class TestClass9_2 : ITestInterface1
+        {
+            public ValueTask<string> Test1Async(int arg0, string arg1, DateTime arg2)
+            {
+                throw new ArgumentException(
+                    $"921: {arg0} - {arg1} - {arg2}",
+                    new AggregateException(
+                        $"922: {arg0} - {arg1} - {arg2}",
+                        new InvalidOperationException(
+                            $"9231: {arg0} - {arg1} - {arg2}"),
+                        new NotImplementedException(
+                            $"9232: {arg0} - {arg1} - {arg2}")));
+            }
+        }
+
+        public sealed class TestClass10 : ITestInterface1
+        {
+            public string? Value;
+
+            public ValueTask<string> Test1Async(int arg0, string arg1, DateTime arg2)
+            {
+                this.Value = $"101: {arg0} - {arg1} - {arg2}";
+                return new ValueTask<string>(default(string)!);
+            }
+        }
+
         [SetUp]
         public void SetUp() =>
             Nest.Factory.Initialize();
@@ -189,7 +223,7 @@ namespace Fluorite
         public async Task InvokeUniDirectional()
         {
             var (server, client) = Utilities.CreateDirectAttachedNestPair();
-            server.Register(new TestClass11());
+            server.Register(new TestClass1_1());
 
             var now = DateTime.Now;
             var result = await client.GetPeer<ITestInterface1>().Test1Async(123, "ABC", now);
@@ -201,8 +235,8 @@ namespace Fluorite
         public async Task InvokeBiDirectional()
         {
             var (server, client) = Utilities.CreateDirectAttachedNestPair();
-            server.Register(new TestClass11());
-            client.Register(new TestClass12());
+            server.Register(new TestClass1_1());
+            client.Register(new TestClass1_2());
 
             var now = DateTime.Now;
             var result1 = await client.GetPeer<ITestInterface1>().Test1Async(123, "ABC", now);
@@ -216,8 +250,8 @@ namespace Fluorite
         public async Task InvokeDifferentInterface()
         {
             var (server, client) = Utilities.CreateDirectAttachedNestPair();
-            server.Register(new TestClass11());
-            server.Register(new TestClass21());
+            server.Register(new TestClass1_1());
+            server.Register(new TestClass2_1());
 
             var now = DateTime.Now;
             var result1 = await client.GetPeer<ITestInterface1>().Test1Async(123, "ABC", now);
@@ -245,7 +279,7 @@ namespace Fluorite
         public async Task InvokePseudoParallelUniDirectional()
         {
             var (server, client) = Utilities.CreateDirectAttachedNestPair();
-            server.Register(new TestClass11());
+            server.Register(new TestClass1_1());
 
             var results = await Task.WhenAll(
                 Enumerable.Range(0, IterationCount).
@@ -268,8 +302,8 @@ namespace Fluorite
         public async Task InvokePseudoParallelBiDirectional()
         {
             var (server, client) = Utilities.CreateDirectAttachedNestPair();
-            server.Register(new TestClass11());
-            client.Register(new TestClass12());
+            server.Register(new TestClass1_1());
+            client.Register(new TestClass1_2());
 
             var results = await Task.WhenAll(
                 Enumerable.Range(0, IterationCount).
@@ -303,7 +337,7 @@ namespace Fluorite
         public async Task InvokeTrulyParallelUniDirectional()
         {
             var (server, client) = Utilities.CreateDirectAttachedNestPair();
-            server.Register(new TestClass11());
+            server.Register(new TestClass1_1());
 
             var results = await Task.WhenAll(
                 Enumerable.Range(0, IterationCount).
@@ -326,8 +360,8 @@ namespace Fluorite
         public async Task InvokeTrulyParallelBiDirectional()
         {
             var (server, client) = Utilities.CreateDirectAttachedNestPair();
-            server.Register(new TestClass11());
-            client.Register(new TestClass12());
+            server.Register(new TestClass1_1());
+            client.Register(new TestClass1_2());
 
             var results = await Task.WhenAll(
                 Enumerable.Range(0, IterationCount).
@@ -368,7 +402,7 @@ namespace Fluorite
             async Task ExecuteAsync()
             {
                 var (server, client) = Utilities.CreateDirectAttachedNestPair();
-                server.Register(new TestClass51());
+                server.Register(new TestClass5_1());
 
                 var results = await Task.WhenAll(
                     Enumerable.Range(0, IterationCount).
@@ -401,8 +435,8 @@ namespace Fluorite
             async Task ExecuteAsync()
             {
                 var (server, client) = Utilities.CreateDirectAttachedNestPair();
-                server.Register(new TestClass51());
-                client.Register(new TestClass52());
+                server.Register(new TestClass5_1());
+                client.Register(new TestClass5_2());
 
                 var results = await Task.WhenAll(
                     Enumerable.Range(0, IterationCount).
@@ -446,7 +480,7 @@ namespace Fluorite
             async Task ExecuteAsync()
             {
                 var (server, client) = Utilities.CreateDirectAttachedNestPair();
-                server.Register(new TestClass51());
+                server.Register(new TestClass5_1());
 
                 var results = await Task.WhenAll(
                     Enumerable.Range(0, IterationCount).
@@ -479,8 +513,8 @@ namespace Fluorite
             async Task ExecuteAsync()
             {
                 var (server, client) = Utilities.CreateDirectAttachedNestPair();
-                server.Register(new TestClass51());
-                client.Register(new TestClass52());
+                server.Register(new TestClass5_1());
+                client.Register(new TestClass5_2());
 
                 var results = await Task.WhenAll(
                     Enumerable.Range(0, IterationCount).
@@ -517,7 +551,7 @@ namespace Fluorite
         public async Task Delay()
         {
             var (server, client) = Utilities.CreateDirectAttachedNestPair();
-            server.Register(new TestClass41());
+            server.Register(new TestClass4_1());
 
             var now = DateTime.Now;
             var result = await client.GetPeer<ITestInterface1>().Test1Async(300, "ABC", now);
@@ -529,7 +563,7 @@ namespace Fluorite
         public async Task DelayWithReleaseContext()
         {
             var (server, client) = Utilities.CreateDirectAttachedNestPair();
-            server.Register(new TestClass42());
+            server.Register(new TestClass4_2());
 
             var now = DateTime.Now;
             var result = await client.GetPeer<ITestInterface1>().Test1Async(300, "ABC", now);
@@ -576,6 +610,84 @@ namespace Fluorite
             await client.GetPeer<ITestInterface6>().Test1Async(123, "ABC", now);
 
             Assert.AreEqual($"6: 123 - ABC - {now}", t.Value);
+        }
+
+        [Test]
+        public async Task InvokeCaughtException()
+        {
+            var (server, client) = Utilities.CreateDirectAttachedNestPair();
+            var t = new TestClass9_1();
+            server.Register(t);
+
+            var now = DateTime.Now;
+            try
+            {
+                await client.GetPeer<ITestInterface1>().Test1Async(123, "ABC", now);
+                Assert.Fail();
+            }
+            catch (PeerException pex)
+            {
+                Assert.AreEqual("System.ArgumentException", pex.ExceptionType);
+                Assert.AreEqual($"91: 123 - ABC - {now}", pex.Message);
+            }
+        }
+
+        [Test]
+        public async Task InvokeCaughtNestedException()
+        {
+            var (server, client) = Utilities.CreateDirectAttachedNestPair();
+            var t = new TestClass9_2();
+            server.Register(t);
+
+            var now = DateTime.Now;
+            try
+            {
+                await client.GetPeer<ITestInterface1>().Test1Async(123, "ABC", now);
+                Assert.Fail();
+            }
+            catch (PeerException pex)
+            {
+                Assert.AreEqual("System.ArgumentException", pex.ExceptionType);
+#if NETFRAMEWORK
+                Assert.AreEqual($"921: 123 - ABC - {now}", pex.Message);
+#else
+                Assert.AreEqual($"921: 123 - ABC - {now} (922: 123 - ABC - {now} (9231: 123 - ABC - {now}) (9232: 123 - ABC - {now}))", pex.Message);
+#endif
+                Assert.AreEqual(1, pex.InnerExceptions.Count);
+
+                var iex2 = (PeerException)pex.InnerExceptions[0];
+                Assert.AreEqual("System.AggregateException", iex2.ExceptionType);
+#if NETFRAMEWORK
+                Assert.AreEqual($"922: 123 - ABC - {now}", iex2.Message);
+#else
+                Assert.AreEqual($"922: 123 - ABC - {now} (9231: 123 - ABC - {now}) (9232: 123 - ABC - {now})", iex2.Message);
+#endif
+                Assert.AreEqual(2, iex2.InnerExceptions.Count);
+
+                var iex31 = (PeerException)iex2.InnerExceptions[0];
+                Assert.AreEqual("System.InvalidOperationException", iex31.ExceptionType);
+                Assert.AreEqual($"9231: 123 - ABC - {now}", iex31.Message);
+                Assert.AreEqual(0, iex31.InnerExceptions.Count);
+
+                var iex32 = (PeerException)iex2.InnerExceptions[1];
+                Assert.AreEqual("System.NotImplementedException", iex32.ExceptionType);
+                Assert.AreEqual($"9232: 123 - ABC - {now}", iex32.Message);
+                Assert.AreEqual(0, iex32.InnerExceptions.Count);
+            }
+        }
+
+        [Test]
+        public async Task InvokeNullReturn()
+        {
+            var (server, client) = Utilities.CreateDirectAttachedNestPair();
+            var t = new TestClass10();
+            server.Register(t);
+
+            var now = DateTime.Now;
+            var result = await client.GetPeer<ITestInterface1>().Test1Async(123, "ABC", now);
+
+            Assert.IsNull(result);
+            Assert.AreEqual($"101: 123 - ABC - {now}", t.Value);
         }
     }
 }

@@ -17,7 +17,6 @@
 //
 ////////////////////////////////////////////////////////////////////////////
 
-using Fluorite.Internal;
 using Fluorite.Transport;
 using System;
 using System.Diagnostics;
@@ -35,6 +34,12 @@ namespace Fluorite.Direct
         {
             this.Transport1 = transport1;
             this.Transport2 = transport2;
+        }
+
+        public void Deconstruct(out ITransport transport1, out ITransport transport2)
+        {
+            transport1 = this.Transport1;
+            transport2 = this.Transport2;
         }
     }
 

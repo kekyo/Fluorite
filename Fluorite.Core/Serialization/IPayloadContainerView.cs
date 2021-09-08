@@ -20,6 +20,8 @@
 using System;
 using System.Threading.Tasks;
 
+#pragma warning disable CS1573
+
 namespace Fluorite.Serialization
 {
     /// <summary>
@@ -45,9 +47,21 @@ namespace Fluorite.Serialization
         /// <summary>
         /// Deserialize a body data.
         /// </summary>
-        /// <param name="index">Body index</param>
+        /// <param name="bodyIndex">Body index</param>
         /// <param name="type">Target type</param>
         /// <returns>Deserialized instance</returns>
-        ValueTask<object?> DeserializeBodyAsync(int index, Type type);
+        ValueTask<object?> DeserializeBodyAsync(int bodyIndex, Type type);
+    }
+
+    public static class SerializerExtension
+    {
+        /// <summary>
+        /// Deserialize a body data.
+        /// </summary>
+        /// <typeparam name="T">Target type</typeparam>
+        /// <param name="bodyIndex">Body index</param>
+        /// <returns>Deserialized instance</returns>
+        public static async ValueTask<T> DeserializeBodyAsync<T>(this IPayloadContainerView pcv, int bodyIndex) =>
+            (T)(await pcv.DeserializeBodyAsync(bodyIndex, typeof(T)).ConfigureAwait(false))!;
     }
 }

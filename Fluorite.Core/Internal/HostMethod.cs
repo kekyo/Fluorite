@@ -22,6 +22,7 @@ using System;
 using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -138,6 +139,12 @@ namespace Fluorite.Internal
                             ConfigureAwait(false)!;
                         tcs.TrySetResult(result);
                     }
+                    // Requires for reflection invocation.
+                    catch (TargetInvocationException ex)
+                    {
+                        Debug.Assert(ex.InnerException != null);
+                        tcs.TrySetException(ex.InnerException!);
+                    }
                     catch (Exception ex)
                     {
                         tcs.TrySetException(ex);
@@ -153,8 +160,21 @@ namespace Fluorite.Internal
                     this.method!.GetParameters().
                         Select(p => container.DeserializeBodyAsync(p.Position, p.ParameterType).AsTask()));
 
-                return (await ((ValueTask<TResult>)this.method.Invoke(this.host!, args)!).
-                    ConfigureAwait(false))!;
+                try
+                {
+                    return (await ((ValueTask<TResult>)this.method.Invoke(this.host!, args)!).
+                        ConfigureAwait(false))!;
+                }
+                // Requires for reflection invocation.
+                catch (TargetInvocationException ex)
+                {
+                    Debug.Assert(ex.InnerException != null);
+                    var edi = ExceptionDispatchInfo.Capture(ex.InnerException!);
+                    edi.Throw();
+
+                    // HACK: Will not execute.
+                    throw ex.InnerException!;
+                }
             }
         }
     }

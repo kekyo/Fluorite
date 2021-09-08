@@ -24,9 +24,9 @@ namespace Fluorite.Internal
     /// <summary>
     /// An type definition of nothing.
     /// </summary>
-    internal sealed class PlaceholderOfVoid
+    internal sealed class VoidPlaceholder
     {
-        private PlaceholderOfVoid()
+        private VoidPlaceholder()
         {
         }
 

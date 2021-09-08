@@ -26,6 +26,8 @@ namespace Fluorite.Serialization
     /// <summary>
     /// Multi purpose standard payload container base class.
     /// </summary>
+    /// <remarks>Derives directly serialize/deserialize target when be applicable your serializer,
+    /// or you have to implement custom payload container type with IPayloadContainerView from scratch.</remarks>
 #if !NETSTANDARD1_3
     [Serializable]
 #endif

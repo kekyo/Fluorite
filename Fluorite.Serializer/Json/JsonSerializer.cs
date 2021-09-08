@@ -24,16 +24,33 @@ using System.Threading.Tasks;
 
 namespace Fluorite.Json
 {
+    /// <summary>
+    /// Fluorite defaulted Json serializer.
+    /// </summary>
     public sealed class JsonSerializer : ISerializer
     {
+        /// <summary>
+        /// Constructor.
+        /// </summary>
         private JsonSerializer()
         {
         }
 
+        /// <summary>
+        /// Payload content type string for this serializer content.
+        /// </summary>
+        /// <remarks>HTTP content type like string ('application/json', 'application/octet-stream' and etc...)</remarks>
         public string PayloadContentType =>
             "application/json";
 
-        public async ValueTask SerializeAsync(Stream writeTo, Guid requestIdentity, string methodIdentity, object body)
+        /// <summary>
+        /// Perform serialize with header values and body.
+        /// </summary>
+        /// <param name="writeTo">Serialize into this stream</param>
+        /// <param name="requestIdentity">Request identity</param>
+        /// <param name="methodIdentity">Method identity</param>
+        /// <param name="body">Body data</param>
+        public async ValueTask SerializeAsync(Stream writeTo, Guid requestIdentity, string methodIdentity, object? body)
         {
             var container = new JsonContainer(requestIdentity, methodIdentity, body);
             var jtoken = Newtonsoft.Json.Linq.JToken.FromObject(container);
@@ -47,6 +64,22 @@ namespace Fluorite.Json
                 ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Perform serialize with exception information.
+        /// </summary>
+        /// <param name="writeTo">Serialize into this stream</param>
+        /// <param name="requestIdentity">Request identity</param>
+        /// <param name="methodIdentity">Method identity</param>
+        /// <param name="ei">Exception information</param>
+        public ValueTask SerializeExceptionAsync(Stream writeTo, Guid requestIdentity, string methodIdentity, ExceptionInformation ei) =>
+            // Newtonsoft.Json can serialize directly ExceptionInformation class.
+            this.SerializeAsync(writeTo, requestIdentity, methodIdentity, ei);
+
+        /// <summary>
+        /// Perform deserialize from a stream.
+        /// </summary>
+        /// <param name="readFrom">Deserialize from this stream</param>
+        /// <returns>Payload container view instance</returns>
         public async ValueTask<IPayloadContainerView> DeserializeAsync(Stream readFrom)
         {
             var tr = new StreamReader(readFrom);
@@ -57,6 +90,9 @@ namespace Fluorite.Json
             return jtoken.ToObject<JsonContainer>()!;
         }
 
+        /// <summary>
+        /// Json serializer instance.
+        /// </summary>
         public static readonly JsonSerializer Instance =
             new JsonSerializer();
     }

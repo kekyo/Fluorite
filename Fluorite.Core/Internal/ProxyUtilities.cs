@@ -36,12 +36,16 @@ namespace Fluorite.Internal
                 Select(t => t.FullName));
 
         [EditorBrowsable(EditorBrowsableState.Never)]
+        public static string GetTypeIdentity(Type type) =>
+            type.FullName!.Replace('+', '.').Replace('/', '.');
+
+        [EditorBrowsable(EditorBrowsableState.Never)]
         public static string GetMethodIdentity(Type type, string methodName)
         {
             var name = methodName.EndsWith("Async") ?
                 methodName.Substring(0, methodName.Length - 5) :
                 methodName;
-            return $"{type.FullName!.Replace('+', '.')}.{name}";
+            return $"{GetTypeIdentity(type)}.{name}";
         }
 
         [EditorBrowsable(EditorBrowsableState.Never)]

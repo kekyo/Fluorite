@@ -24,32 +24,59 @@ using System.Threading.Tasks;
 
 namespace Fluorite.Json
 {
+    /// <summary>
+    /// Payload container for Json serializer.
+    /// </summary>
     internal sealed class JsonContainer : PayloadContainerBase
     {
+        /// <summary>
+        /// Constructor.
+        /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public JsonContainer()
         {
         }
 
+        /// <summary>
+        /// Constructor.
+        /// </summary>
+        /// <param name="requestIdentity">Request identity</param>
+        /// <param name="methodIdentity">Method identity</param>
+        /// <param name="body">Payload body data</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public JsonContainer(Guid requestIdentity, string methodIdentity, object body) :
+        public JsonContainer(Guid requestIdentity, string methodIdentity, object? body) :
             base(requestIdentity, methodIdentity) =>
-            this.Body = body;
+            this.Body = (body != null) ? Newtonsoft.Json.Linq.JToken.FromObject(body) : null;
 
-        public object? Body { get; set; }
+        /// <summary>
+        /// Payload body data.
+        /// </summary>
+        /// <remarks>It will contain an array when data is arguments.</remarks>
+        public Newtonsoft.Json.Linq.JToken? Body { get; set; }
 
+        /// <summary>
+        /// Number of payload body data.
+        /// </summary>
         public override int BodyCount =>
             this.Body is Newtonsoft.Json.Linq.JArray array ?
                 array.Count :
                 1;
 
+        /// <summary>
+        /// Deserialize a body data.
+        /// </summary>
+        /// <param name="bodyIndex">Body index</param>
+        /// <param name="type">Target type</param>
+        /// <returns>Deserialized instance</returns>
         public override ValueTask<object?> DeserializeBodyAsync(int bodyIndex, Type type) =>
             new ValueTask<object?>(
+                // Newtonsoft.Json can deserialize directly ExceptionInformation class,
+                // so we don't do any specialization at here.
                 this.Body switch
                 {
                     Newtonsoft.Json.Linq.JArray array => array[bodyIndex].ToObject(type)!,
                     Newtonsoft.Json.Linq.JToken token => token.ToObject(type),
-                    _ => null!
+                    _ => null
                 });
     }
 }

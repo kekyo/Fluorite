@@ -40,7 +40,7 @@ namespace Fluorite
         private readonly ISerializer serializer;
         private readonly IPeerProxyFactory factory;
 
-        private readonly Dictionary<string, HostMethodBase> stubs = new();
+        private readonly Dictionary<string, HostMethodBase> hostMethods = new();
         private readonly Dictionary<Guid, InvokingAwaiter> awaiters = new();
 
         private ITransport? transport;
@@ -73,9 +73,9 @@ namespace Fluorite
         {
             if (this.transport != null)
             {
-                lock (this.stubs)
+                lock (this.hostMethods)
                 {
-                    this.stubs.Clear();
+                    this.hostMethods.Clear();
                 }
 
                 lock (this.awaiters)
@@ -104,7 +104,7 @@ namespace Fluorite
         /// <param name="synchContext">Will be bound synchronization context</param>
         public void Register(IHost host, SynchronizationContext? synchContext)
         {
-            lock (this.stubs)
+            lock (this.hostMethods)
             {
                 foreach (var type in host.GetType().GetInterfaces().
                     Where(it => typeof(IHost).IsAssignableFrom(it)))
@@ -112,7 +112,7 @@ namespace Fluorite
                     foreach (var method in type.GetMethods())
                     {
                         var identity = ProxyUtilities.GetMethodIdentity(type, method.Name);
-                        this.stubs.Add(identity, HostMethodBase.Create(host, method, synchContext));
+                        this.hostMethods.Add(identity, HostMethodBase.Create(host, method, synchContext));
                     }
                 }
             }
@@ -132,7 +132,7 @@ namespace Fluorite
         /// <param name="host">Expose object</param>
         public void Unregister(IHost host)
         {
-            lock (this.stubs)
+            lock (this.hostMethods)
             {
                 foreach (var type in host.GetType().GetInterfaces().
                     Where(it => typeof(IHost).IsAssignableFrom(it)))
@@ -140,7 +140,7 @@ namespace Fluorite
                     foreach (var method in type.GetMethods())
                     {
                         var name = ProxyUtilities.GetMethodIdentity(type, method.Name);
-                        this.stubs.Remove(name);
+                        this.hostMethods.Remove(name);
                     }
                 }
             }
@@ -232,9 +232,9 @@ namespace Fluorite
             Debug.Assert(!string.IsNullOrWhiteSpace(methodIdentity));
             Debug.Assert(args != null);
 
-            var awaiter = new InvokingAwaiter<PlaceholderOfVoid>();
+            var awaiter = new InvokingAwaiter<VoidPlaceholder>();
 
-            await this.InvokeAsync<PlaceholderOfVoid>(awaiter, methodIdentity, args!).
+            await this.InvokeAsync<VoidPlaceholder>(awaiter, methodIdentity, args!).
                 ConfigureAwait(false);
 
             await awaiter.Task.
@@ -249,18 +249,23 @@ namespace Fluorite
         private static async ValueTask AcceptAwaiterAsync(
             IPayloadContainerView container, InvokingAwaiter awaiter)
         {
-            Debug.Assert(container.BodyCount == 1);
-
-            if (container.MethodIdentity == "Exception")
+            if ((container.MethodIdentity == "Exception") &&
+                (container.BodyCount == 1))
             {
-                var message = await container.DeserializeBodyAsync(0, typeof(string)).
+                var ei = await container.DeserializeBodyAsync<ExceptionInformation>(0).
                     ConfigureAwait(false);
-                awaiter.SetException((message != null) ? new Exception((string)message) : new Exception());
+                try
+                {
+                    throw new PeerException(ei);
+                }
+                catch (Exception ex)
+                {
+                    awaiter.SetException(ex);
+                }
             }
-            else
+            else if ((container.MethodIdentity == "Result") &&
+                (container.BodyCount == 1))
             {
-                Debug.Assert(container.MethodIdentity == "Result");
-
                 try
                 {
                     var result = await container.DeserializeBodyAsync(0, awaiter.ResultType).
@@ -272,6 +277,10 @@ namespace Fluorite
                     awaiter.SetException(ex);
                 }
             }
+            else
+            {
+                Debug.WriteLine($"Invalid invoking result: RequestIdentity={container.RequestIdentity}, MethodIdentity={container.MethodIdentity}, BodyCount={container.BodyCount}");
+            }
         }
 
         /// <summary>
@@ -281,9 +290,9 @@ namespace Fluorite
         private async ValueTask AcceptInvokingAsync(IPayloadContainerView container)
         {
             HostMethodBase? hostMethod = null;
-            lock (this.stubs)
+            lock (this.hostMethods)
             {
-                this.stubs.TryGetValue(container.MethodIdentity, out hostMethod);
+                this.hostMethods.TryGetValue(container.MethodIdentity, out hostMethod);
             }
 
             if (hostMethod != null)
@@ -298,26 +307,41 @@ namespace Fluorite
                 }
                 catch (Exception ex)
                 {
-                    result = ex.Message;
+                    result = new ExceptionInformation(ex);
                     name = "Exception";
                 }
 
                 using (var stream = await this.transport!.GetSenderStreamAsync().
                     ConfigureAwait(false))
                 {
-                    await this.serializer.SerializeAsync(stream, container.RequestIdentity, name, new[] { result }).
-                        ConfigureAwait(false);
+                    if (result is ExceptionInformation ei)
+                    {
+                        await this.serializer.SerializeExceptionAsync(stream, container.RequestIdentity, name, ei).
+                            ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        await this.serializer.SerializeAsync(stream, container.RequestIdentity, name, result).
+                            ConfigureAwait(false);
+                    }
+
                     await stream.FlushAsync().
                         ConfigureAwait(false);
                 }
             }
-            // Will ignore sprious (Already abandoned awaiter)
+            // Will ignore sprious (Already abandoned awaiter) or method not found.
             else if ((container.MethodIdentity != "Result") && (container.MethodIdentity != "Exception"))
             {
+                Debug.WriteLine($"Method not found: RequestIdentity={container.RequestIdentity}, MethodIdentity={container.MethodIdentity}, BodyCount={container.BodyCount}");
+
                 using (var stream = await this.transport!.GetSenderStreamAsync().
                     ConfigureAwait(false))
                 {
-                    await this.serializer.SerializeAsync(stream, container.RequestIdentity, "Exception", new[] { "Method not found." }).
+                    await this.serializer.SerializeExceptionAsync(
+                        stream,
+                        container.RequestIdentity,
+                        "Exception",
+                        new ExceptionInformation("System.NotImplementedException", "Method not found.")).
                         ConfigureAwait(false);
                     await stream.FlushAsync().
                         ConfigureAwait(false);
