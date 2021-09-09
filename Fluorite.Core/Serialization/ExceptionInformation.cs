@@ -35,6 +35,11 @@ namespace Fluorite.Serialization
 #endif
     public sealed class ExceptionInformation
     {
+#if NETFRAMEWORK
+        private static readonly bool isRunningOnOldCLR =
+            (Environment.OSVersion.Platform == PlatformID.Win32NT) &&
+            (Type.GetType("Mono.Runtime") == null);
+#endif
         private static readonly ExceptionInformation[] empty = new ExceptionInformation[0];
 
         /// <summary>
@@ -85,17 +90,19 @@ namespace Fluorite.Serialization
                 aex.InnerExceptions.Select(ex => new ExceptionInformation(ex)).ToArray() :
                 ex.InnerException is { } iex ?
                     new[] { new ExceptionInformation(iex) } : empty;
-
 #if NETFRAMEWORK
-            this.Message = ex.Message;
-#else
-            // DIRTY HACK: On .NET Core CLR, the Message property will fold covering all nested exception
-            //   with brackets into a string (maybe makes better human readable).
+            if (isRunningOnOldCLR)
+            {
+                this.Message = ex.Message;
+                return;
+            }
+#endif
+            // DIRTY HACK: On .NET Core CLR and mono, the Message property will fold covering
+            //   all nested exception with brackets into a string (maybe makes better human readable).
             //   Fluorite unfolds it...
             this.Message = this.InnerExceptions.Aggregate(
                 ex.Message,
                 (agg, v) => agg.Replace($" ({v.Message})", string.Empty));
-#endif
         }
     }
 }

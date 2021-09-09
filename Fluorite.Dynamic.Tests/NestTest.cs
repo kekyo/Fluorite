@@ -29,6 +29,12 @@ namespace Fluorite
     [TestFixture]
     public sealed class NestTest
     {
+#if NETFRAMEWORK
+        private static readonly bool isRunningOnOldCLR =
+            (Environment.OSVersion.Platform == PlatformID.Win32NT) &&
+            (Type.GetType("Mono.Runtime") == null);
+#endif
+
         private const int IterationCount = 10000;
 
         public interface ITestInterface1 : IHost
@@ -649,19 +655,21 @@ namespace Fluorite
             {
                 Assert.AreEqual("System.ArgumentException", pex.ExceptionType);
 #if NETFRAMEWORK
-                Assert.AreEqual($"921: 123 - ABC - {now}", pex.Message);
-#else
-                Assert.AreEqual($"921: 123 - ABC - {now} (922: 123 - ABC - {now} (9231: 123 - ABC - {now}) (9232: 123 - ABC - {now}))", pex.Message);
+                if (isRunningOnOldCLR)
+                    Assert.AreEqual($"921: 123 - ABC - {now}", pex.Message);
+                else
 #endif
+                Assert.AreEqual($"921: 123 - ABC - {now} (922: 123 - ABC - {now} (9231: 123 - ABC - {now}) (9232: 123 - ABC - {now}))", pex.Message);
                 Assert.AreEqual(1, pex.InnerExceptions.Count);
 
                 var iex2 = (PeerException)pex.InnerExceptions[0];
                 Assert.AreEqual("System.AggregateException", iex2.ExceptionType);
 #if NETFRAMEWORK
-                Assert.AreEqual($"922: 123 - ABC - {now}", iex2.Message);
-#else
-                Assert.AreEqual($"922: 123 - ABC - {now} (9231: 123 - ABC - {now}) (9232: 123 - ABC - {now})", iex2.Message);
+                if (isRunningOnOldCLR)
+                    Assert.AreEqual($"922: 123 - ABC - {now}", iex2.Message);
+                else
 #endif
+                Assert.AreEqual($"922: 123 - ABC - {now} (9231: 123 - ABC - {now}) (9232: 123 - ABC - {now})", iex2.Message);
                 Assert.AreEqual(2, iex2.InnerExceptions.Count);
 
                 var iex31 = (PeerException)iex2.InnerExceptions[0];
