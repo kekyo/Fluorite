@@ -38,19 +38,24 @@ namespace Fluorite.Serialization
 #if NETFRAMEWORK
         private static readonly bool isRunningOnOldCLR =
             (Environment.OSVersion.Platform == PlatformID.Win32NT) &&
-            (Type.GetType("Mono.Runtime") == null);
+            (System.Type.GetType("Mono.Runtime") == null);
 #endif
         private static readonly ExceptionInformation[] empty = new ExceptionInformation[0];
 
         /// <summary>
         /// Peer exception type.
         /// </summary>
-        public string ExceptionType { get; set; }
+        public string Type { get; set; }
 
         /// <summary>
-        /// Exception message.
+        /// Peer exception message.
         /// </summary>
         public string Message { get; set; }
+
+        /// <summary>
+        /// Peer stack trace if available.
+        /// </summary>
+        public string? StackTrace { get; set; }
 
         /// <summary>
         /// Inner exceptions.
@@ -68,7 +73,7 @@ namespace Fluorite.Serialization
         /// </summary>
         public ExceptionInformation()
         {
-            this.ExceptionType = "(Unknown)";
+            this.Type = "(Unknown)";
             this.Message = "(Nothing)";
             this.InnerExceptions = empty;
         }
@@ -76,11 +81,11 @@ namespace Fluorite.Serialization
         /// <summary>
         /// Constructor.
         /// </summary>
-        /// <param name="exceptionType"></param>
-        /// <param name="message"></param>
-        public ExceptionInformation(string exceptionType, string message)
+        /// <param name="type">Peer exception type</param>
+        /// <param name="message">Message string</param>
+        public ExceptionInformation(string type, string message)
         {
-            this.ExceptionType = exceptionType;
+            this.Type = type;
             this.Message = message;
             this.InnerExceptions = empty;
         }
@@ -89,14 +94,16 @@ namespace Fluorite.Serialization
         /// Constructor.
         /// </summary>
         /// <param name="ex">Original exception</param>
-        public ExceptionInformation(Exception ex)
+        /// <param name="containsStackTrace">Perform includes stack trace</param>
+        public ExceptionInformation(Exception ex, bool containsStackTrace)
         {
-            this.ExceptionType = ProxyUtilities.GetTypeIdentity(ex.GetType());
+            this.Type = ProxyUtilities.GetTypeIdentity(ex.GetType());
             this.InnerExceptions = ex is AggregateException aex ?
-                aex.InnerExceptions.Select(ex => new ExceptionInformation(ex)).ToArray() :
+                aex.InnerExceptions.Select(ex => new ExceptionInformation(ex, containsStackTrace)).ToArray() :
                 ex.InnerException is { } iex ?
-                    new[] { new ExceptionInformation(iex) } : empty;
+                    new[] { new ExceptionInformation(iex, containsStackTrace) } : empty;
             this.Message = GetStrictMessageFromException(ex);
+            this.StackTrace = containsStackTrace ? ex.StackTrace : null;
         }
 
         /// <summary>

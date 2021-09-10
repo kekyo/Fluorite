@@ -633,7 +633,7 @@ namespace Fluorite
             }
             catch (PeerException pex)
             {
-                Assert.AreEqual("System.ArgumentException", pex.ExceptionType);
+                Assert.AreEqual("System.ArgumentException", pex.PeerExceptionType);
                 Assert.AreEqual($"91: 123 - ABC - {now}", pex.Message);
             }
         }
@@ -653,7 +653,7 @@ namespace Fluorite
             }
             catch (PeerException pex)
             {
-                Assert.AreEqual("System.ArgumentException", pex.ExceptionType);
+                Assert.AreEqual("System.ArgumentException", pex.PeerExceptionType);
 #if NETFRAMEWORK
                 if (isRunningOnOldCLR)
                     Assert.AreEqual($"921: 123 - ABC - {now}", pex.Message);
@@ -663,7 +663,7 @@ namespace Fluorite
                 Assert.AreEqual(1, pex.InnerExceptions.Count);
 
                 var iex2 = (PeerException)pex.InnerExceptions[0];
-                Assert.AreEqual("System.AggregateException", iex2.ExceptionType);
+                Assert.AreEqual("System.AggregateException", iex2.PeerExceptionType);
 #if NETFRAMEWORK
                 if (isRunningOnOldCLR)
                     Assert.AreEqual($"922: 123 - ABC - {now}", iex2.Message);
@@ -673,12 +673,12 @@ namespace Fluorite
                 Assert.AreEqual(2, iex2.InnerExceptions.Count);
 
                 var iex31 = (PeerException)iex2.InnerExceptions[0];
-                Assert.AreEqual("System.InvalidOperationException", iex31.ExceptionType);
+                Assert.AreEqual("System.InvalidOperationException", iex31.PeerExceptionType);
                 Assert.AreEqual($"9231: 123 - ABC - {now}", iex31.Message);
                 Assert.AreEqual(0, iex31.InnerExceptions.Count);
 
                 var iex32 = (PeerException)iex2.InnerExceptions[1];
-                Assert.AreEqual("System.NotImplementedException", iex32.ExceptionType);
+                Assert.AreEqual("System.NotImplementedException", iex32.PeerExceptionType);
                 Assert.AreEqual($"9232: 123 - ABC - {now}", iex32.Message);
                 Assert.AreEqual(0, iex32.InnerExceptions.Count);
             }

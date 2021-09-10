@@ -39,6 +39,7 @@ namespace Fluorite
     {
         private readonly ISerializer serializer;
         private readonly IPeerProxyFactory factory;
+        private readonly bool containsStackTrace;
 
         private readonly Dictionary<string, HostMethodBase> hostMethods = new();
         private readonly Dictionary<Guid, InvokingAwaiter> awaiters = new();
@@ -58,6 +59,7 @@ namespace Fluorite
             this.factory = factory;
             this.serializer = settings.Serializer;
             this.transport = settings.Transport;
+            this.containsStackTrace = settings.ContainsStackTrace;
 
             this.transport.SetPayloadContentType(this.serializer.PayloadContentType);
             this.transport.Initialize(this.OnReceivedAsync);
@@ -314,9 +316,14 @@ namespace Fluorite
                 using (var stream = await this.transport!.GetSenderStreamAsync().
                     ConfigureAwait(false))
                 {
-                    if (result is Exception ex)
+                    if (name == "Exception")
                     {
-                        await this.serializer.SerializeExceptionAsync(stream, container.RequestIdentity, name, ex).
+                        Debug.Assert(result is Exception);
+                        await this.serializer.SerializeExceptionAsync(
+                            stream,
+                            container.RequestIdentity,
+                            name,
+                            new ExceptionInformation((Exception)result!, this.containsStackTrace)).
                             ConfigureAwait(false);
                     }
                     else
@@ -341,7 +348,7 @@ namespace Fluorite
                         stream,
                         container.RequestIdentity,
                         "Exception",
-                        new NotImplementedException("Method not found.")).
+                        new ExceptionInformation(typeof(NotImplementedException).FullName!, "Method not found.")).
                         ConfigureAwait(false);
                     await stream.FlushAsync().
                         ConfigureAwait(false);

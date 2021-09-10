@@ -39,15 +39,22 @@ namespace Fluorite
         public readonly ITransport Transport;
 
         /// <summary>
+        /// Perform contains stack trace from peer.
+        /// </summary>
+        public readonly bool ContainsStackTrace;
+
+        /// <summary>
         /// Constructor.
         /// </summary>
         /// <param name="serializer">Serializer instance</param>
         /// <param name="transport">Transport instance</param>
+        /// <param name="containsStackTrace">Perform contains stack trace</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private NestSettings(ISerializer serializer, ITransport transport)
+        private NestSettings(ISerializer serializer, ITransport transport, bool containsStackTrace)
         {
             this.Serializer = serializer;
             this.Transport = transport;
+            this.ContainsStackTrace = containsStackTrace;
         }
 
         /// <summary>
@@ -55,9 +62,10 @@ namespace Fluorite
         /// </summary>
         /// <param name="serializer">Serializer instance</param>
         /// <param name="transport">Transport instance</param>
+        /// <param name="containsStackTrace">Perform contains stack trace</param>
         /// <returns>NestSettings</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static NestSettings Create(ISerializer serializer, ITransport transport) =>
-            new NestSettings(serializer, transport);
+        public static NestSettings Create(ISerializer serializer, ITransport transport, bool containsStackTrace = false) =>
+            new NestSettings(serializer, transport, containsStackTrace);
     }
 }

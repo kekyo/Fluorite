@@ -34,14 +34,22 @@ namespace Fluorite
         /// <summary>
         /// Peer exception type.
         /// </summary>
-        public readonly string ExceptionType;
+        public readonly string PeerExceptionType;
+
+        /// <summary>
+        /// Peer stack trace if available.
+        /// </summary>
+        public readonly string? PeerStackTrace;
 
         /// <summary>
         /// Constructor.
         /// </summary>
         /// <param name="ei">Exception information</param>
-        public PeerException(ExceptionInformation ei) :
-            base(ei.Message, ei.InnerExceptions.Select(iei => new PeerException(iei)).ToArray()) =>
-            this.ExceptionType = ei.ExceptionType;
+        public PeerException(IExceptionInformationView ei) :
+            base(ei.Message, ei.InnerExceptions.Select(iei => new PeerException(iei)).ToArray())
+        {
+            this.PeerExceptionType = ei.Type;
+            this.PeerStackTrace = ei.StackTrace;
+        }
     }
 }

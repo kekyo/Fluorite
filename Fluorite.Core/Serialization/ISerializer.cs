@@ -49,8 +49,8 @@ namespace Fluorite.Serialization
         /// <param name="writeTo">Serialize into this stream</param>
         /// <param name="requestIdentity">Request identity</param>
         /// <param name="methodIdentity">Method identity</param>
-        /// <param name="ex">Target exception</param>
-        ValueTask SerializeExceptionAsync(Stream writeTo, Guid requestIdentity, string methodIdentity, Exception ex);
+        /// <param name="ei">Exception information</param>
+        ValueTask SerializeExceptionAsync(Stream writeTo, Guid requestIdentity, string methodIdentity, ExceptionInformation ei);
 
         /// <summary>
         /// Perform deserialize from a stream.

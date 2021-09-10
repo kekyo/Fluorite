@@ -27,12 +27,17 @@ namespace Fluorite.Serialization
         /// <summary>
         /// Peer exception type.
         /// </summary>
-        string ExceptionType { get; }
+        string Type { get; }
 
         /// <summary>
         /// Exception message.
         /// </summary>
         string Message { get; }
+
+        /// <summary>
+        /// Peer stack trace if available.
+        /// </summary>
+        string? StackTrace { get; }
 
         /// <summary>
         /// Inner exceptions.
