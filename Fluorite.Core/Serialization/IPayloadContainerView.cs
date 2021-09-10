@@ -51,6 +51,13 @@ namespace Fluorite.Serialization
         /// <param name="type">Target type</param>
         /// <returns>Deserialized instance</returns>
         ValueTask<object?> DeserializeBodyAsync(int bodyIndex, Type type);
+
+        /// <summary>
+        /// Deserialize an exception.
+        /// </summary>
+        /// <returns>Deserialized exception</returns>
+        /// <remarks>Mostly returns PeerException instance.</remarks>
+        ValueTask<Exception> DeserializeExceptionAsync();
     }
 
     public static class SerializerExtension

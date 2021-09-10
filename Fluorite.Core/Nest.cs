@@ -252,11 +252,11 @@ namespace Fluorite
             if ((container.MethodIdentity == "Exception") &&
                 (container.BodyCount == 1))
             {
-                var ei = await container.DeserializeBodyAsync<ExceptionInformation>(0).
-                    ConfigureAwait(false);
                 try
                 {
-                    throw new PeerException(ei);
+                    var ex = await container.DeserializeExceptionAsync().
+                        ConfigureAwait(false);
+                    awaiter.SetException(ex);
                 }
                 catch (Exception ex)
                 {
@@ -307,16 +307,16 @@ namespace Fluorite
                 }
                 catch (Exception ex)
                 {
-                    result = new ExceptionInformation(ex);
+                    result = ex;
                     name = "Exception";
                 }
 
                 using (var stream = await this.transport!.GetSenderStreamAsync().
                     ConfigureAwait(false))
                 {
-                    if (result is ExceptionInformation ei)
+                    if (result is Exception ex)
                     {
-                        await this.serializer.SerializeExceptionAsync(stream, container.RequestIdentity, name, ei).
+                        await this.serializer.SerializeExceptionAsync(stream, container.RequestIdentity, name, ex).
                             ConfigureAwait(false);
                     }
                     else
@@ -341,7 +341,7 @@ namespace Fluorite
                         stream,
                         container.RequestIdentity,
                         "Exception",
-                        new ExceptionInformation("System.NotImplementedException", "Method not found.")).
+                        new NotImplementedException("Method not found.")).
                         ConfigureAwait(false);
                     await stream.FlushAsync().
                         ConfigureAwait(false);

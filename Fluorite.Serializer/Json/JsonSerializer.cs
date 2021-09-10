@@ -65,15 +65,15 @@ namespace Fluorite.Json
         }
 
         /// <summary>
-        /// Perform serialize with exception information.
+        /// Perform serialize with an exception.
         /// </summary>
         /// <param name="writeTo">Serialize into this stream</param>
         /// <param name="requestIdentity">Request identity</param>
         /// <param name="methodIdentity">Method identity</param>
-        /// <param name="ei">Exception information</param>
-        public ValueTask SerializeExceptionAsync(Stream writeTo, Guid requestIdentity, string methodIdentity, ExceptionInformation ei) =>
+        /// <param name="ex">Target exception</param>
+        public ValueTask SerializeExceptionAsync(Stream writeTo, Guid requestIdentity, string methodIdentity, Exception ex) =>
             // Newtonsoft.Json can serialize directly ExceptionInformation class.
-            this.SerializeAsync(writeTo, requestIdentity, methodIdentity, ei);
+            this.SerializeAsync(writeTo, requestIdentity, methodIdentity, new ExceptionInformation(ex));
 
         /// <summary>
         /// Perform deserialize from a stream.

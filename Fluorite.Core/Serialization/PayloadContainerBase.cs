@@ -85,6 +85,18 @@ namespace Fluorite.Serialization
         public abstract ValueTask<object?> DeserializeBodyAsync(int index, Type type);
 
         /// <summary>
+        /// Deserialize an exception.
+        /// </summary>
+        /// <returns>Deserialized exception</returns>
+        /// <remarks>Default implementation are going to use ExceptionInformation class.</remarks>
+        public virtual async ValueTask<Exception> DeserializeExceptionAsync()
+        {
+            var ei = await this.DeserializeBodyAsync<ExceptionInformation>(0).
+                ConfigureAwait(false);
+            return new PeerException(ei);
+        }
+
+        /// <summary>
         /// Get a string reflect this instance.
         /// </summary>
         /// <returns>String</returns>

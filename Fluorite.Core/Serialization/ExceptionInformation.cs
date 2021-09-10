@@ -33,7 +33,7 @@ namespace Fluorite.Serialization
 #if !NETSTANDARD1_3
     [Serializable]
 #endif
-    public sealed class ExceptionInformation
+    public sealed class ExceptionInformation : IExceptionInformationView
     {
 #if NETFRAMEWORK
         private static readonly bool isRunningOnOldCLR =
@@ -56,6 +56,12 @@ namespace Fluorite.Serialization
         /// Inner exceptions.
         /// </summary>
         public ExceptionInformation[] InnerExceptions { get; set; }
+
+        /// <summary>
+        /// Inner exceptions.
+        /// </summary>
+        IExceptionInformationView[] IExceptionInformationView.InnerExceptions =>
+            this.InnerExceptions;
 
         /// <summary>
         /// Constructor.
@@ -90,17 +96,32 @@ namespace Fluorite.Serialization
                 aex.InnerExceptions.Select(ex => new ExceptionInformation(ex)).ToArray() :
                 ex.InnerException is { } iex ?
                     new[] { new ExceptionInformation(iex) } : empty;
+            this.Message = GetStrictMessageFromException(ex);
+        }
+
+        /// <summary>
+        /// Get strict message string from targetted Exception class.
+        /// </summary>
+        /// <param name="ex">Target exception</param>
+        /// <returns>Message string</returns>
+        public static string GetStrictMessageFromException(Exception ex)
+        {
 #if NETFRAMEWORK
             if (isRunningOnOldCLR)
             {
-                this.Message = ex.Message;
-                return;
+                return ex.Message;
             }
 #endif
+
+            if (!(ex is AggregateException aex))
+            {
+                return ex.Message;
+            }
+
             // DIRTY HACK: On .NET Core CLR and mono, the Message property will fold covering
             //   all nested exception with brackets into a string (maybe makes better human readable).
             //   Fluorite unfolds it...
-            this.Message = this.InnerExceptions.Aggregate(
+            return aex.InnerExceptions.Aggregate(
                 ex.Message,
                 (agg, v) => agg.Replace($" ({v.Message})", string.Empty));
         }
