@@ -174,6 +174,8 @@ namespace Fluorite
         private async ValueTask InvokeAsync<TResult>(
             InvokingAwaiter awaiter, string methodIdentity, object[] args)
         {
+            Debug.Assert(this.transport != null);
+
             var requestIdentity = Guid.NewGuid();
             lock (this.awaiters)
             {
@@ -214,6 +216,8 @@ namespace Fluorite
             Debug.Assert(!string.IsNullOrWhiteSpace(methodIdentity));
             Debug.Assert(args != null);
 
+            Debug.Assert(this.transport != null);
+
             var awaiter = new InvokingAwaiter<TResult>();
 
             await this.InvokeAsync<TResult>(awaiter, methodIdentity, args!).
@@ -233,6 +237,8 @@ namespace Fluorite
         {
             Debug.Assert(!string.IsNullOrWhiteSpace(methodIdentity));
             Debug.Assert(args != null);
+
+            Debug.Assert(this.transport != null);
 
             var awaiter = new InvokingAwaiter<VoidPlaceholder>();
 

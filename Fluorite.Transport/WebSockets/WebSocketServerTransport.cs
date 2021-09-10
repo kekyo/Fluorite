@@ -20,10 +20,8 @@
 using Fluorite.Internal;
 using Fluorite.Transport;
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using System.Net;
 using System.Net.WebSockets;
 using System.Runtime.CompilerServices;
@@ -38,9 +36,8 @@ namespace Fluorite.WebSockets
     public sealed class WebSocketServerTransport :
         TransportBase
     {
-        private const int BufferElementSize = 16384;
-
-        private readonly Dictionary<WebSocket, WebSocketController> connections = new();
+        private readonly WebSocketServerController controller =
+            WebSocketServerController.Create();
 
         private HttpListener? httpListener;
         private TaskCompletionSource<bool>? shutdown;
@@ -55,35 +52,12 @@ namespace Fluorite.WebSockets
         {
         }
 
-        private async ValueTask PumpAsync(WebSocket webSocket, Task shutdownTask)
-        {
-            Debug.Assert(this.httpListener != null);
-            Debug.Assert(this.shutdown != null);
-            Debug.Assert(this.done != null);
-
-            using (var controller = new WebSocketController(
-                webSocket, this.messageType, BufferElementSize))
-            {
-                lock (this.connections)
-                {
-                    this.connections.Add(webSocket, controller);
-                }
-
-                try
-                {
-                    await controller.RunAsync(this.OnReceivedAsync, shutdownTask).
-                        ConfigureAwait(false);
-                }
-                finally
-                {
-                    lock (this.connections)
-                    {
-                        this.connections.Remove(webSocket);
-                    }
-                    webSocket.Dispose();
-                }
-            }
-        }
+        /// <summary>
+        /// Calling when set payload content type.
+        /// </summary>
+        /// <param name="contentType">HTTP content type like string ('application/json', 'application/octet-stream' and etc...)</param>
+        protected override void OnSetPayloadContentType(string contentType) =>
+            this.messageType = WebSocketController.GetMessageType(contentType);
 
         private async void ConnectAsynchronously(HttpListenerContext httpContext)
         {
@@ -117,7 +91,11 @@ namespace Fluorite.WebSockets
 
                 var webSocketContext = await acceptWebSocketTask;
 
-                await this.PumpAsync(webSocketContext.WebSocket, shutdownTask).
+                await this.controller.RunAsync(
+                    webSocketContext.WebSocket,
+                    shutdownTask,
+                    this.messageType,
+                    this.OnReceivedAsync).
                     ConfigureAwait(false);
             }
             catch (Exception ex)
@@ -231,29 +209,8 @@ namespace Fluorite.WebSockets
         /// Calling when get sender stream.
         /// </summary>
         /// <returns>Stream</returns>
-        protected override ValueTask<Stream> OnGetSenderStreamAsync()
-        {
-            if (this.httpListener is { })
-            {
-                // TODO: Broadcast all connections.
-                WebSocketController[] controllers;
-                lock (this.connections)
-                {
-                    controllers = this.connections.Values.
-                        ToArray();
-                }
-
-                if (controllers.Length >= 1)
-                {
-                    var bridges = controllers.
-                        Select(controller => controller.AllocateSenderStreamBridge()).
-                        ToArray();
-                    return new ValueTask<Stream>(new SenderStream(bridges));
-                }
-            }
-
-            throw new ObjectDisposedException("WebSocketServerTransport already shutdowned.");
-        }
+        protected override ValueTask<Stream> OnGetSenderStreamAsync() =>
+            this.controller.GetSenderStreamAsync();
 
         /// <summary>
         /// Create WebSocket transport instance.

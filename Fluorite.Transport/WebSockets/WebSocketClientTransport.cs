@@ -54,9 +54,7 @@ namespace Fluorite.WebSockets
         /// </summary>
         /// <param name="contentType">HTTP content type like string ('application/json', 'application/octet-stream' and etc...)</param>
         protected override void OnSetPayloadContentType(string contentType) =>
-            this.messageType = (contentType == "application/octet-stream") ?
-                WebSocketMessageType.Binary :
-                WebSocketMessageType.Text;
+            this.messageType = WebSocketController.GetMessageType(contentType);
 
         private async void ProceedReceivingAsynchronously()
         {

@@ -52,6 +52,15 @@ namespace Fluorite.WebSockets
             }
         }
 
+        /// <summary>
+        /// Get WebSocket message type from content type string.
+        /// </summary>
+        /// <param name="contentType">HTTP content type like string ('application/json', 'application/octet-stream' and etc...)</param>
+        public static WebSocketMessageType GetMessageType(string contentType) =>
+            (contentType == "application/octet-stream") ?
+                WebSocketMessageType.Binary :
+                WebSocketMessageType.Text;
+
         public StreamBridge AllocateSenderStreamBridge()
         {
             var bridge = new StreamBridge();
@@ -149,7 +158,10 @@ namespace Fluorite.WebSockets
         }
 
         private async Task RunReceiverAsync(
-            Func<Stream, ValueTask> action, Task shutdownTask, TaskCompletionSource<bool> exitRequest, CancellationToken token)
+            Func<Stream, ValueTask> receivedAction,
+            Task shutdownTask,
+            TaskCompletionSource<bool> exitRequest,
+            CancellationToken token)
         {
             var buffer = new ExpandableBufferStream(this.bufferElementSize);
 
@@ -186,7 +198,7 @@ namespace Fluorite.WebSockets
                     {
                         buffer.ReadyToRead();
 
-                        await action(buffer);
+                        await receivedAction(buffer);
 
                         buffer = new ExpandableBufferStream(this.bufferElementSize);
                     }
@@ -203,7 +215,9 @@ namespace Fluorite.WebSockets
             }
         }
 
-        public async ValueTask RunAsync(Func<Stream, ValueTask> action, Task shutdownTask)
+        public async ValueTask RunAsync(
+            Func<Stream, ValueTask> receivedAction,
+            Task shutdownTask)
         {
             var cts = new CancellationTokenSource();
 
@@ -213,7 +227,7 @@ namespace Fluorite.WebSockets
 
                 await Task.WhenAll(
                     this.RunSenderAsync(shutdownTask, exitRequest, cts.Token),
-                    this.RunReceiverAsync(action, shutdownTask, exitRequest, cts.Token)).
+                    this.RunReceiverAsync(receivedAction, shutdownTask, exitRequest, cts.Token)).
                     ConfigureAwait(false);
 
                 try
