@@ -37,29 +37,30 @@ namespace Fluorite
 
     public sealed class StaticProxyGenerator
     {
+        // Lazy ignoring assembly list (uses for speed up)
         private static readonly HashSet<string> excludeList = new (StringComparer.InvariantCultureIgnoreCase)
-            {
-                "mscorlib.dll",
-                "System.dll",
-                "System.Core.dll",
-                "System.ValueTuple.dll",
-                "System.Threading.Tasks.Extensions.dll",
-                "System.Runtime.dll",
-                "System.Runtime.CompilerServices.Unsafe.dll",
-                "System.Memory.dll",
-                "System.Drawing.Common.dll",
-                "System.Data.Common.dll",
-                "System.Net.Http.dll",
-                "System.Reactive.dll",
-                "netstandard.dll",
-                "Microsoft.CodeAnalysis.dll",
-                "Microsoft.CodeAnalysis.CSharp.dll",
-                "Fluorite.dll",
-                "Fluorite.Core.dll",
-                "Fluorite.Serializer.dll",
-                "Fluorite.Transport.dll",
-                "Fluorite.Dynamic.dll",
-                "Newtonsoft.Json.dll",
+        {
+            "mscorlib.dll",
+            "System.dll",
+            "System.Core.dll",
+            "System.ValueTuple.dll",
+            "System.Threading.Tasks.Extensions.dll",
+            "System.Runtime.dll",
+            "System.Runtime.CompilerServices.Unsafe.dll",
+            "System.Memory.dll",
+            "System.Drawing.Common.dll",
+            "System.Data.Common.dll",
+            "System.Net.Http.dll",
+            "System.Reactive.dll",
+            "netstandard.dll",
+            "Microsoft.CodeAnalysis.dll",
+            "Microsoft.CodeAnalysis.CSharp.dll",
+            "Fluorite.dll",
+            "Fluorite.Core.dll",
+            "Fluorite.Serializer.dll",
+            "Fluorite.Transport.dll",
+            "Fluorite.Dynamic.dll",
+            "Newtonsoft.Json.dll",
         };
 
         private readonly string targetAssemblyPath;
@@ -86,8 +87,9 @@ namespace Fluorite
         private readonly MethodDefinition generatedProxyAttributeInitializeMethod;
 
         private readonly MethodDefinition registerMethodT;
+        private readonly FieldDefinition staticProxyFactoryInstance;
 
-        private readonly MethodDefinition markInitializedMethod;
+        private readonly MethodDefinition nestBasisFactoryInitializeMethod;
 
         public StaticProxyGenerator(string[] referencesBasePath, string targetAssemblyPath, Action<LogLevels, string> message)
         {
@@ -141,11 +143,13 @@ namespace Fluorite
                 "Fluorite.Proxy.StaticProxyFactory")!;
             this.registerMethodT = staticProxyFactoryType.Methods.
                 First(m => m.Name.StartsWith("Register"));
-            
-            var proxyUtilitiesType = fluoriteCoreAssembly.MainModule.GetType(
-                "Fluorite.Internal.ProxyUtilities")!;
-            this.markInitializedMethod = proxyUtilitiesType.Methods.
-                First(m => m.Name == "MarkInitialized");
+            this.staticProxyFactoryInstance = staticProxyFactoryType.Fields.
+              First(m => m.Name.StartsWith("Instance"));
+
+            var nestBasisFactoryType = fluoriteCoreAssembly.MainModule.GetType(
+                "Fluorite.Advanced.NestBasisFactory")!;
+            this.nestBasisFactoryInitializeMethod = nestBasisFactoryType.Methods.
+                First(m => m.Name == "Initialize");
             
             // HACK: made safer extract AttributeUsageAttribute type reference.
             var attributeUsageAttribute =
@@ -419,8 +423,10 @@ namespace Fluorite
                 module.ImportReference(generatedProxyAttributeConstructor)));
             ilp.Append(Instruction.Create(OpCodes.Call,
                 module.ImportReference(this.generatedProxyAttributeInitializeMethod)));
+            ilp.Append(Instruction.Create(OpCodes.Ldsfld,
+                module.ImportReference(this.staticProxyFactoryInstance)));
             ilp.Append(Instruction.Create(OpCodes.Call,
-                module.ImportReference(this.markInitializedMethod)));
+                module.ImportReference(this.nestBasisFactoryInitializeMethod)));
             ilp.Append(Instruction.Create(OpCodes.Ret));
         }
 

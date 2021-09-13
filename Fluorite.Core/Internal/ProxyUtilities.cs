@@ -51,9 +51,5 @@ namespace Fluorite.Internal
         [EditorBrowsable(EditorBrowsableState.Never)]
         public static string GetMethodIdentity<TPeer>(string methodName) =>
             GetMethodIdentity(typeof(TPeer), methodName);
-
-        [EditorBrowsable(EditorBrowsableState.Never)]
-        public static void MarkInitialized() =>
-            NestFactoryBasisExtension.MarkInitialized();
     }
 }

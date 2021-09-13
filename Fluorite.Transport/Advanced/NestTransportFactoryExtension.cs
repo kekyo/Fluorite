@@ -29,27 +29,30 @@ namespace Fluorite.Advanced
     public static class NestTransportFactoryExtension
     {
         public static async ValueTask<Nest> ConnectAsync(
-            this NestFactory _, string serverAddress, int port, bool performSecureConnection, ISerializer serializer, IPeerProxyFactory factory)
+            this NestFactory _, string serverAddress, int port, bool performSecureConnection, ISerializer serializer)
         {
             var transport = WebSocketClientTransport.Create();
+            var nest = NestBasisFactory.Create(NestSettings.Create(serializer, transport));
             await transport.ConnectAsync(serverAddress, port, performSecureConnection).ConfigureAwait(false);
-            return _.Create(NestSettings.Create(serializer, transport), factory);
+            return nest;
         }
 
         public static async ValueTask<Nest> ConnectAsync(
-            this NestFactory _, EndPoint serverEndPoint, bool performSecureConnection, ISerializer serializer, IPeerProxyFactory factory)
+            this NestFactory _, EndPoint serverEndPoint, bool performSecureConnection, ISerializer serializer)
         {
             var transport = WebSocketClientTransport.Create();
+            var nest = NestBasisFactory.Create(NestSettings.Create(serializer, transport));
             await transport.ConnectAsync(serverEndPoint, performSecureConnection).ConfigureAwait(false);
-            return _.Create(NestSettings.Create(serializer, transport), factory);
+            return nest;
         }
 
         public static async ValueTask<Nest> ConnectAsync(
-            this NestFactory _, Uri serverEndPoint, ISerializer serializer, IPeerProxyFactory factory)
+            this NestFactory _, Uri serverEndPoint, ISerializer serializer)
         {
             var transport = WebSocketClientTransport.Create();
+            var nest = NestBasisFactory.Create(NestSettings.Create(serializer, transport));
             await transport.ConnectAsync(serverEndPoint).ConfigureAwait(false);
-            return _.Create(NestSettings.Create(serializer, transport), factory);
+            return nest;
         }
     }
 }

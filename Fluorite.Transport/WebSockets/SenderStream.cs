@@ -55,10 +55,10 @@ namespace Fluorite.WebSockets
         }
 
         public override Task WriteAsync(byte[] buffer, int offset, int count, CancellationToken token) =>
-            Task.WhenAll(this.bridges.Select(descriptor =>
+            Task.WhenAll(this.bridges.Select(bridge =>
             {
                 var streamData = new StreamData(buffer, offset, count, token);
-                descriptor.Enqueue(streamData);
+                bridge.Enqueue(streamData);
                 return streamData.Task;
             }));
 

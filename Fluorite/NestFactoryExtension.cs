@@ -62,18 +62,32 @@ namespace Fluorite
         /// <returns>Nest</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Nest Create(
-            this NestFactory _, NestSettings settings) =>
-            _.Create(settings, StaticProxyFactory.Instance);
+            this NestFactory _,
+            NestSettings settings) =>
+            NestBasisFactory.Create(settings);
 
         /// <summary>
         /// Create the nest with explicitly transport.
         /// </summary>
         /// <param name="transport">Transport</param>
+        /// <param name="containsStackTrace">Perform contains stack trace</param>
+        /// <param name="exposeObjects">Expose object instances</param>
         /// <returns>Nest</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Nest Create(
-            this NestFactory _, ITransport transport) =>
-            _.Create(NestSettings.Create(JsonSerializer.Instance, transport));
+            this NestFactory _,
+            ITransport transport,
+            bool containsStackTrace = false,
+            params IHost[] exposeObjects)
+        {
+            var settings = NestSettings.Create(JsonSerializer.Instance, transport).
+                AddExposeObjects(exposeObjects);
+            if (containsStackTrace)
+            {
+                settings = settings.EnableContainsStackTrace();
+            }
+            return NestBasisFactory.Create(settings);
+        }
 
         /// <summary>
         /// Create the nest and connect WebSocket server.
@@ -81,17 +95,19 @@ namespace Fluorite
         /// <param name="serverAddress">WebSocket server address</param>
         /// <param name="serverPort">WebSocket port</param>
         /// <param name="performSecureConnection">Perform secure connection when available</param>
-        /// <param name="registeringObjects">Expose objects</param>
+        /// <param name="containsStackTrace">Perform contains stack trace</param>
+        /// <param name="exposeObjects">Expose object instances</param>
         /// <returns>Nest</returns>
         public static async ValueTask<Nest> ConnectAsync(
-            this NestFactory _, string serverAddress, int serverPort, bool performSecureConnection, params IHost[] registeringObjects)
+            this NestFactory _,
+            string serverAddress,
+            int serverPort,
+            bool performSecureConnection,
+            bool containsStackTrace = false,
+            params IHost[] exposeObjects)
         {
             var transport = WebSocketClientTransport.Create();
-            var nest = _.Create(transport);
-            foreach (var registeringObject in registeringObjects)
-            {
-                nest.Register(registeringObject);
-            }
+            var nest = _.Create(transport, containsStackTrace, exposeObjects);
             await transport.ConnectAsync(serverAddress, serverPort, performSecureConnection).ConfigureAwait(false);
             return nest;
         }
@@ -101,17 +117,18 @@ namespace Fluorite
         /// </summary>
         /// <param name="serverEndPoint">WebSocket server endpoint</param>
         /// <param name="performSecureConnection">Perform secure connection when available</param>
-        /// <param name="registeringObjects">Expose objects</param>
+        /// <param name="containsStackTrace">Perform contains stack trace</param>
+        /// <param name="exposeObjects">Expose object instances</param>
         /// <returns>Nest</returns>
         public static async ValueTask<Nest> ConnectAsync(
-            this NestFactory _, EndPoint serverEndPoint, bool performSecureConnection, params IHost[] registeringObjects)
+            this NestFactory _,
+            EndPoint serverEndPoint, 
+            bool performSecureConnection,
+            bool containsStackTrace = false,
+            params IHost[] exposeObjects)
         {
             var transport = WebSocketClientTransport.Create();
-            var nest = _.Create(transport);
-            foreach (var registeringObject in registeringObjects)
-            {
-                nest.Register(registeringObject);
-            }
+            var nest = _.Create(transport, containsStackTrace, exposeObjects);
             await transport.ConnectAsync(serverEndPoint, performSecureConnection).ConfigureAwait(false);
             return nest;
         }
@@ -120,17 +137,17 @@ namespace Fluorite
         /// Create the nest and connect WebSocket server.
         /// </summary>
         /// <param name="serverEndPoint">WebSocket server endpoint</param>
-        /// <param name="registeringObjects">Expose objects</param>
+        /// <param name="containsStackTrace">Perform contains stack trace</param>
+        /// <param name="exposeObjects">Expose object instances</param>
         /// <returns>Nest</returns>
         public static async ValueTask<Nest> ConnectAsync(
-            this NestFactory _, Uri serverEndPoint, params IHost[] registeringObjects)
+            this NestFactory _,
+            Uri serverEndPoint,
+            bool containsStackTrace = false,
+            params IHost[] exposeObjects)
         {
             var transport = WebSocketClientTransport.Create();
-            var nest = _.Create(transport);
-            foreach (var registeringObject in registeringObjects)
-            {
-                nest.Register(registeringObject);
-            }
+            var nest = _.Create(transport, containsStackTrace, exposeObjects);
             await transport.ConnectAsync(serverEndPoint).ConfigureAwait(false);
             return nest;
         }
@@ -140,17 +157,18 @@ namespace Fluorite
         /// </summary>
         /// <param name="serverPort">WebSocket server port</param>
         /// <param name="requiredSecureConnection">Will accept when secure connection is enabled</param>
-        /// <param name="registeringObjects">Expose objects</param>
+        /// <param name="containsStackTrace">Perform contains stack trace</param>
+        /// <param name="exposeObjects">Expose object instances</param>
         /// <returns>Nest</returns>
         public static Nest StartServer(
-            this NestFactory _, int serverPort, bool requiredSecureConnection, params IHost[] registeringObjects)
+            this NestFactory _,
+            int serverPort,
+            bool requiredSecureConnection,
+            bool containsStackTrace = false,
+            params IHost[] exposeObjects)
         {
             var transport = WebSocketServerTransport.Create();
-            var nest = _.Create(transport);
-            foreach (var registeringObject in registeringObjects)
-            {
-                nest.Register(registeringObject);
-            }
+            var nest = _.Create(transport, containsStackTrace, exposeObjects);
             transport.Start(serverPort, requiredSecureConnection);
             return nest;
         }
@@ -159,17 +177,17 @@ namespace Fluorite
         /// Create the nest and produce WebSocket server.
         /// </summary>
         /// <param name="listenEndPointUrl">WebSocket server endpoint</param>
-        /// <param name="registeringObjects">Expose objects</param>
+        /// <param name="containsStackTrace">Perform contains stack trace</param>
+        /// <param name="exposeObjects">Expose object instances</param>
         /// <returns>Nest</returns>
         public static Nest StartServer(
-            this NestFactory _, string listenEndPointUrl, params IHost[] registeringObjects)
+            this NestFactory _,
+            string listenEndPointUrl,
+            bool containsStackTrace = false,
+            params IHost[] exposeObjects)
         {
             var transport = WebSocketServerTransport.Create();
-            var nest = _.Create(transport);
-            foreach (var registeringObject in registeringObjects)
-            {
-                nest.Register(registeringObject);
-            }
+            var nest = _.Create(transport, containsStackTrace, exposeObjects);
             transport.Start(listenEndPointUrl);
             return nest;
         }

@@ -19,6 +19,7 @@
 
 using Fluorite.Serialization;
 using Fluorite.Transport;
+using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 
 namespace Fluorite
@@ -28,33 +29,65 @@ namespace Fluorite
     /// </summary>
     public sealed class NestSettings
     {
+        private readonly List<IHost> exposeObjects;
+
         /// <summary>
         /// The serializer will be used by Fluorite.
         /// </summary>
-        public readonly ISerializer Serializer;
+        public ISerializer Serializer { get; private set; }
 
         /// <summary>
         /// The transport will be used by Fluorite.
         /// </summary>
-        public readonly ITransport Transport;
+        public ITransport Transport { get; private set; }
 
         /// <summary>
         /// Perform contains stack trace from peer.
         /// </summary>
-        public readonly bool ContainsStackTrace;
+        public bool ContainsStackTrace { get; private set; }
+
+        /// <summary>
+        /// Expose object instances
+        /// </summary>
+        public IReadOnlyList<IHost> ExposeObjects =>
+            this.exposeObjects;
 
         /// <summary>
         /// Constructor.
         /// </summary>
         /// <param name="serializer">Serializer instance</param>
         /// <param name="transport">Transport instance</param>
-        /// <param name="containsStackTrace">Perform contains stack trace</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private NestSettings(ISerializer serializer, ITransport transport, bool containsStackTrace)
+        private NestSettings(
+            ISerializer serializer,
+            ITransport transport)
         {
             this.Serializer = serializer;
             this.Transport = transport;
-            this.ContainsStackTrace = containsStackTrace;
+            this.exposeObjects = new();
+        }
+
+        /// <summary>
+        /// Enable contains stack trace on payload container.
+        /// </summary>
+        /// <returns>NestSettings</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public NestSettings EnableContainsStackTrace()
+        {
+            this.ContainsStackTrace = true;
+            return this;
+        }
+
+        /// <summary>
+        /// Add exposing object instances.
+        /// </summary>
+        /// <param name="exposeObjects">Expose object instances</param>
+        /// <returns>NestSettings</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public NestSettings AddExposeObjects(params IHost[] exposeObjects)
+        {
+            this.exposeObjects.AddRange(exposeObjects);
+            return this;
         }
 
         /// <summary>
@@ -62,10 +95,11 @@ namespace Fluorite
         /// </summary>
         /// <param name="serializer">Serializer instance</param>
         /// <param name="transport">Transport instance</param>
-        /// <param name="containsStackTrace">Perform contains stack trace</param>
         /// <returns>NestSettings</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static NestSettings Create(ISerializer serializer, ITransport transport, bool containsStackTrace = false) =>
-            new NestSettings(serializer, transport, containsStackTrace);
+        public static NestSettings Create(
+            ISerializer serializer,
+            ITransport transport) =>
+            new NestSettings(serializer, transport);
     }
 }

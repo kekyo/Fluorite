@@ -95,14 +95,10 @@ namespace Fluorite
                 new ValueTask<byte[]>(Create(arg0, arg1, arg2));
         }
 
-        [SetUp]
-        public void SetUp() =>
-            Nest.Factory.Initialize();
-
         [Test]
         public async Task InvokeUniDirectional()
         {
-            var server = Nest.Factory.StartServer(4649, false, new TestClass1());
+            var server = Nest.Factory.StartServer(4649, false, false, new TestClass1());
             try
             {
                 var client = await Nest.Factory.ConnectAsync("127.0.0.1", 4649, false);
@@ -127,11 +123,10 @@ namespace Fluorite
         [Test]
         public async Task InvokeBiDirectional()
         {
-            var server = Nest.Factory.StartServer(4649, false, new TestClass1());
+            var server = Nest.Factory.StartServer(4649, false, false, new TestClass1());
             try
             {
-                var client = await Nest.Factory.ConnectAsync("127.0.0.1", 4649, false);
-                client.Register(new TestClass2());
+                var client = await Nest.Factory.ConnectAsync("127.0.0.1", 4649, false, false, new TestClass2());
                 try
                 {
                     var now = DateTime.Now;
@@ -155,7 +150,7 @@ namespace Fluorite
         [Test]
         public async Task InvokeTrulyParallelUniDirectional()
         {
-            var server = Nest.Factory.StartServer(4649, false, new TestClass1());
+            var server = Nest.Factory.StartServer(4649, false, false, new TestClass1());
             try
             {
                 var client = await Nest.Factory.ConnectAsync("127.0.0.1", 4649, false);
@@ -191,10 +186,10 @@ namespace Fluorite
         [Test]
         public async Task InvokeTrulyParallelBiDirectional()
         {
-            var server = Nest.Factory.StartServer(4649, false, new TestClass1());
+            var server = Nest.Factory.StartServer(4649, false, false, new TestClass1());
             try
             {
-                var client = await Nest.Factory.ConnectAsync("127.0.0.1", 4649, false, new TestClass2());
+                var client = await Nest.Factory.ConnectAsync("127.0.0.1", 4649, false, false, new TestClass2());
                 try
                 {
                     var results = await Task.WhenAll(
@@ -238,7 +233,7 @@ namespace Fluorite
         [Test]
         public async Task LargeDataInArgument()
         {
-            var server = Nest.Factory.StartServer(4649, false, new TestClass6());
+            var server = Nest.Factory.StartServer(4649, false, false, new TestClass6());
             try
             {
                 var client = await Nest.Factory.ConnectAsync("127.0.0.1", 4649, false);
@@ -266,7 +261,7 @@ namespace Fluorite
         [Test]
         public async Task LargeDataInResult()
         {
-            var server = Nest.Factory.StartServer(4649, false, new TestClass7());
+            var server = Nest.Factory.StartServer(4649, false, false, new TestClass7());
             try
             {
                 var client = await Nest.Factory.ConnectAsync("127.0.0.1", 4649, false);

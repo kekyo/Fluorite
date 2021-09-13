@@ -19,36 +19,37 @@
 
 using Fluorite.Proxy;
 using System;
-using System.Runtime.CompilerServices;
+using System.ComponentModel;
 
 namespace Fluorite.Advanced
 {
-    public static class NestFactoryBasisExtension
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static class NestBasisFactory
     {
-        private static bool initialized = false;
+        private static IPeerProxyFactory? factory;
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static void MarkInitialized() =>
-            initialized = true;
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static void AssertInitialized()
+        public static void Initialize(IPeerProxyFactory factory)
         {
-            if (!initialized)
+            if (NestBasisFactory.factory != null)
+            {
+                throw new InvalidOperationException("Nest already initialized");
+            }
+            NestBasisFactory.factory = factory;
+        }
+
+        public static Nest Create(NestSettings settings)
+        {
+            if (NestBasisFactory.factory == null)
             {
                 throw new InvalidOperationException("Nest doesn't initialized");
             }
-        }
 
-        public static void Initialize(
-            this NestFactory _) =>
-            MarkInitialized();
-
-        public static Nest Create(
-            this NestFactory _, NestSettings settings, IPeerProxyFactory factory)
-        {
-            AssertInitialized();
-            return new Nest(settings, factory);
+            var nest = new Nest(settings, NestBasisFactory.factory);
+            foreach (var exposeObjects in settings.ExposeObjects)
+            {
+                nest.Register(exposeObjects);
+            }
+            return nest;
         }
     }
 }

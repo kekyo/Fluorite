@@ -17,26 +17,15 @@
 //
 ////////////////////////////////////////////////////////////////////////////
 
-using Fluorite.Json;
-using Fluorite.Transport;
+using NUnit.Framework;
 
-namespace Fluorite.Advanced
+namespace Fluorite
 {
-    public static class NestSerializerFactoryExtension
+    [SetUpFixture]
+    public static class SetUpFixture
     {
-        public static Nest Create(
-            this NestFactory _,
-            ITransport transport,
-            bool containsStackTrace = false,
-            params IHost[] exposeObjects)
-        {
-            var settings = NestSettings.Create(JsonSerializer.Instance, transport).
-                AddExposeObjects(exposeObjects);
-            if (containsStackTrace)
-            {
-                settings = settings.EnableContainsStackTrace();
-            }
-            return NestBasisFactory.Create(settings);
-        }
+        [OneTimeSetUp]
+        public static void SetUp() =>
+            Nest.Factory.Initialize();
     }
 }
