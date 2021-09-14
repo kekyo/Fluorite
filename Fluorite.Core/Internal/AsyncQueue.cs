@@ -30,6 +30,14 @@ namespace Fluorite.Internal
         private readonly Queue<T> queue = new();
         private readonly AsyncManualResetEvent available = new();
 
+        public void Clear()
+        {
+            lock (this.queue)
+            {
+                this.queue.Clear();
+            }
+        }
+
         public void Enqueue(T value)
         {
             lock (this.queue)

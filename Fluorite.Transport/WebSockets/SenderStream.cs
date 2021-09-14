@@ -28,13 +28,34 @@ namespace Fluorite.WebSockets
 {
     internal sealed class SenderStream : Stream
     {
-        private readonly StreamBridge[] bridges;
+        private static readonly StreamBridge[] empty = new StreamBridge[0];
+
+        private StreamBridge[] bridges;
 
         public SenderStream(StreamBridge[] bridges) =>
             this.bridges = bridges;
 
+        public override async Task FlushAsync(CancellationToken token)
+        {
+            token.ThrowIfCancellationRequested();
+
+            if (!object.ReferenceEquals(this.bridges, empty))
+            {
+                await Task.WhenAll(this.bridges.Select(bridge => bridge.EnqueueFinishedAsync(token))).
+                    ConfigureAwait(false);
+                this.bridges = empty;
+            }
+        }
+
         public override void Flush()
         {
+            if (!object.ReferenceEquals(this.bridges, empty))
+            {
+                this.FlushAsync(default).
+                    ConfigureAwait(false).
+                    GetAwaiter().
+                    GetResult();
+            }
         }
 
         public override bool CanWrite =>
@@ -44,31 +65,33 @@ namespace Fluorite.WebSockets
         {
             if (disposing)
             {
-                foreach (var bridge in this.bridges)
-                {
-                    // EOS
-                    bridge.Finished();
-                }
+                this.Flush();
             }
-
             base.Dispose(disposing);
         }
 
-        public override Task WriteAsync(byte[] buffer, int offset, int count, CancellationToken token) =>
-            Task.WhenAll(this.bridges.Select(bridge =>
+        public override Task WriteAsync(byte[] buffer, int offset, int count, CancellationToken token)
+        {
+            token.ThrowIfCancellationRequested();
+
+            this.Write(buffer, offset, count);
+#if NET45
+            return Task.FromResult(true);
+#else
+            return Task.CompletedTask;
+#endif
+        }
+
+        public override void Write(byte[] buffer, int offset, int count)
+        {
+            foreach (var bridge in this.bridges)
             {
-                var streamData = new StreamData(buffer, offset, count, token);
+                var streamData = new StreamData(buffer, offset, count);
                 bridge.Enqueue(streamData);
-                return streamData.Task;
-            }));
+            }
+        }
 
-        public override void Write(byte[] buffer, int offset, int count) =>
-            this.WriteAsync(buffer, offset, count, default).
-            ConfigureAwait(false).
-            GetAwaiter().
-            GetResult();
-
-        #region Unused
+#region Unused
         public override bool CanSeek =>
             false;
 
@@ -92,6 +115,6 @@ namespace Fluorite.WebSockets
 
         public override void SetLength(long value) =>
             throw new NotImplementedException();
-        #endregion
+#endregion
     }
 }

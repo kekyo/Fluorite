@@ -26,20 +26,26 @@ namespace Fluorite.Internal
     internal sealed class StreamBridge : IDisposable
     {
         private readonly AsyncQueue<StreamData?> queue = new();
+        private readonly TaskCompletionSource<bool> completion = new();
 
         public void Dispose()
         {
-            while (this.queue.TryDequeue(out var streamData))
-            {
-                streamData?.Dispose();
-            }
+            this.completion.TrySetCanceled();
+            this.queue.Clear();
         }
 
         public void Enqueue(StreamData streamData) =>
             this.queue.Enqueue(streamData);
 
-        public void Finished() =>
-            this.queue.Enqueue(null);
+        public async Task EnqueueFinishedAsync(CancellationToken cancellationToken)
+        {
+            using (cancellationToken.Register(() => this.completion.TrySetCanceled()))
+            {
+                this.queue.Enqueue(null);
+                await this.completion.Task.
+                    ConfigureAwait(false);
+            }
+        }
 
         public ValueTask<StreamData?> PeekAsync(CancellationToken token) =>
             this.queue.PeekAsync(token);
@@ -49,5 +55,11 @@ namespace Fluorite.Internal
 
         public bool TryDequeue(out StreamData? streamData) =>
             this.queue.TryDequeue(out streamData);
+
+        public void SetCompleted() =>
+            this.completion.TrySetResult(true);
+
+        public void SetFailed(Exception ex) =>
+            this.completion.TrySetException(ex);
     }
 }

@@ -27,6 +27,9 @@ using System.Threading.Tasks;
 
 namespace Fluorite.WebSockets
 {
+    /// <summary>
+    /// Common WebSocket class controller.
+    /// </summary>
     internal sealed class WebSocketController : IDisposable
     {
         private readonly WebSocket webSocket;
@@ -34,6 +37,12 @@ namespace Fluorite.WebSockets
         private readonly int bufferElementSize;
         private readonly AsyncQueue<StreamBridge> bridgeQueue = new();
 
+        /// <summary>
+        /// Constructor.
+        /// </summary>
+        /// <param name="webSocket">WebSocket</param>
+        /// <param name="messageType">Message type</param>
+        /// <param name="bufferElementSize">Buffer element size</param>
         public WebSocketController(
             WebSocket webSocket,
             WebSocketMessageType messageType,
@@ -44,6 +53,9 @@ namespace Fluorite.WebSockets
             this.bufferElementSize = bufferElementSize;
         }
 
+        /// <summary>
+        /// Dispose method.
+        /// </summary>
         public void Dispose()
         {
             while (this.bridgeQueue.TryDequeue(out var bridge))
@@ -61,6 +73,10 @@ namespace Fluorite.WebSockets
                 WebSocketMessageType.Binary :
                 WebSocketMessageType.Text;
 
+        /// <summary>
+        /// Allocate sender bridge.
+        /// </summary>
+        /// <returns>StreamBridge</returns>
         public StreamBridge AllocateSenderStreamBridge()
         {
             var bridge = new StreamBridge();
@@ -68,6 +84,12 @@ namespace Fluorite.WebSockets
             return bridge;
         }
 
+        /// <summary>
+        /// Proceed sending requests.
+        /// </summary>
+        /// <param name="shutdownTask">Shutdown request task</param>
+        /// <param name="exitRequest">Exit request task</param>
+        /// <param name="token">Cancellation token</param>
         private async Task RunSenderAsync(
             Task shutdownTask, TaskCompletionSource<bool> exitRequest, CancellationToken token)
         {
@@ -76,6 +98,7 @@ namespace Fluorite.WebSockets
 
             while (true)
             {
+                // Await shutdown, exit and taking next bridge.
                 var awakeTask = await Task.WhenAny(shutdownTask, exitRequest.Task, bridgeTask).
                     ConfigureAwait(false);
                 if (object.ReferenceEquals(awakeTask, shutdownTask))
@@ -96,67 +119,85 @@ namespace Fluorite.WebSockets
 
                 Debug.Assert(object.ReferenceEquals(awakeTask, bridgeTask));
 
-                var bridge = await bridgeTask;
-                var sendTask = bridge.DequeueAsync(token).
-                    AsTask();
-
-                while (true)
+                // Begin this bridge.
+                using (var bridge = await bridgeTask)
                 {
-                    awakeTask = await Task.WhenAny(shutdownTask, exitRequest.Task, sendTask).
-                        ConfigureAwait(false);
-                    if (object.ReferenceEquals(awakeTask, shutdownTask))
-                    {
-                        await shutdownTask;   // Make completion
-
-                        sendTask.Discard();
-                        exitRequest.TrySetResult(true);   // Tell receiver.
-                        return;
-                    }
-                    if (object.ReferenceEquals(awakeTask, exitRequest.Task))
-                    {
-                        await exitRequest.Task;   // Make completion
-
-                        sendTask.Discard();
-                        return;
-                    }
-
-                    var streamData = await sendTask;
-                    if (streamData == null)
-                    {
-                        // EOS
-                        await this.webSocket.SendAsync(
-                            new ArraySegment<byte>(new byte[0], 0, 0),
-                            this.messageType,
-                            true,
-                            token).
-                            ConfigureAwait(false);
-                        break;
-                    }
-
-                    try
-                    {
-                        await this.webSocket.SendAsync(
-                            streamData.GetData(),
-                            this.messageType,
-                            false,
-                            token).
-                            ConfigureAwait(false);
-                        streamData.SetCompleted();
-                    }
-                    catch (Exception ex)
-                    {
-                        streamData.SetException(ex);
-                    }
-
-                    sendTask = bridge.DequeueAsync(token).
+                    var sendTask = bridge.DequeueAsync(token).
                         AsTask();
+
+                    while (true)
+                    {
+                        // Await shutdown, exit and sending packet request.
+                        awakeTask = await Task.WhenAny(shutdownTask, exitRequest.Task, sendTask).
+                            ConfigureAwait(false);
+                        if (object.ReferenceEquals(awakeTask, shutdownTask))
+                        {
+                            await shutdownTask;   // Make completion
+
+                            sendTask.Discard();
+                            exitRequest.TrySetResult(true);   // Tell receiver.
+                            return;
+                        }
+                        if (object.ReferenceEquals(awakeTask, exitRequest.Task))
+                        {
+                            await exitRequest.Task;   // Make completion
+
+                            sendTask.Discard();
+                            return;
+                        }
+
+                        try
+                        {
+                            var streamData = await sendTask;
+                            if (streamData == null)
+                            {
+                                // End of stream.
+                                await this.webSocket.SendAsync(
+                                    new ArraySegment<byte>(new byte[0], 0, 0),
+                                    this.messageType,
+                                    true,
+                                    token).
+                                    ConfigureAwait(false);
+                                bridge.SetCompleted();
+                                break;
+                            }
+                            else
+                            {
+                                // Send a packet.
+                                await this.webSocket.SendAsync(
+                                    streamData.GetData(),
+                                    this.messageType,
+                                    false,
+                                    token).
+                                    ConfigureAwait(false);
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            // Failed and abort this bridge.
+                            bridge.SetFailed(ex);
+                            break;
+                        }
+
+                        // Schedule dequeuing next sending packet request.
+                        sendTask = bridge.DequeueAsync(token).
+                            AsTask();
+                    }
                 }
 
+                // Schedule dequeuing next taking bridge.
                 bridgeTask = this.bridgeQueue.DequeueAsync(token).
                     AsTask();
             }
         }
 
+        /// <summary>
+        /// Proceed receiving requests.
+        /// </summary>
+        /// <param name="receivedAction">Delegate for received</param>
+        /// <param name="shutdownTask">Shutdown request task</param>
+        /// <param name="exitRequest">Exit request task</param>
+        /// <param name="token">Cancellation token</param>
         private async Task RunReceiverAsync(
             Func<Stream, ValueTask> receivedAction,
             Task shutdownTask,

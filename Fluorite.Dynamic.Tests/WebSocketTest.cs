@@ -259,7 +259,7 @@ namespace Fluorite
         }
 
         [Test]
-        public async Task LargeDataInResult()
+        public async Task LargeDataOutResult()
         {
             var server = Nest.Factory.StartServer(4649, false, false, new TestClass7());
             try

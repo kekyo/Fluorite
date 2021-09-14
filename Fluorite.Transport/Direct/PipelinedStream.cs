@@ -41,13 +41,32 @@ namespace Fluorite.Direct
     {
         private sealed class WriterStream : Stream
         {
-            private readonly StreamBridge bridge;
+            private StreamBridge? bridge;
 
             public WriterStream(StreamBridge bridge) =>
                 this.bridge = bridge;
 
+            public override async Task FlushAsync(CancellationToken token)
+            {
+                token.ThrowIfCancellationRequested();
+
+                if (this.bridge != null)
+                {
+                    await this.bridge.EnqueueFinishedAsync(token).
+                        ConfigureAwait(false);
+                    this.bridge = null;
+                }
+            }
+
             public override void Flush()
             {
+                if (this.bridge != null)
+                {
+                    this.FlushAsync(default).
+                        ConfigureAwait(false).
+                        GetAwaiter().
+                        GetResult();
+                }
             }
 
             public override bool CanWrite =>
@@ -57,9 +76,8 @@ namespace Fluorite.Direct
             {
                 if (disposing)
                 {
-                    this.bridge.Finished();
+                    this.Flush();
                 }
-
                 base.Dispose(disposing);
             }
 
@@ -67,18 +85,24 @@ namespace Fluorite.Direct
             {
                 token.ThrowIfCancellationRequested();
 
-                var streamData = new StreamData(buffer, offset, count, token);
-                this.bridge.Enqueue(streamData);
-                return streamData.Task;
+                this.Write(buffer, offset, count);
+#if NET45
+                return Task.FromResult(true);
+#else
+                return Task.CompletedTask;
+#endif
             }
 
-            public override void Write(byte[] buffer, int offset, int count) =>
-                this.WriteAsync(buffer, offset, count, default).
-                ConfigureAwait(false).
-                GetAwaiter().
-                GetResult();
+            public override void Write(byte[] buffer, int offset, int count)
+            {
+                if (this.bridge != null)
+                {
+                    var streamData = new StreamData(buffer, offset, count);
+                    this.bridge!.Enqueue(streamData);
+                }
+            }
 
-            #region Unused
+#region Unused
             public override bool CanSeek =>
                 false;
 
@@ -102,7 +126,7 @@ namespace Fluorite.Direct
 
             public override void SetLength(long value) =>
                 throw new NotImplementedException();
-            #endregion
+#endregion
         }
 
         private sealed class ReaderStream : Stream
@@ -118,6 +142,15 @@ namespace Fluorite.Direct
 
             public override bool CanRead =>
                 true;
+
+            protected override void Dispose(bool disposing)
+            {
+                if (disposing)
+                {
+                    this.bridge.SetCompleted();
+                }
+                base.Dispose(disposing);
+            }
 
             public override async Task<int> ReadAsync(
                 byte[] buffer, int offset, int count, CancellationToken cancellationToken)
@@ -147,7 +180,6 @@ namespace Fluorite.Direct
                     streamData.Forward(csize);
                     if (data.Count <= csize)
                     {
-                        streamData.SetCompleted();
                         this.bridge.TryDequeue(out var _);
                     }
                 }
@@ -161,7 +193,7 @@ namespace Fluorite.Direct
                 GetAwaiter().
                 GetResult();
 
-            #region Unused
+#region Unused
             public override bool CanSeek =>
                 false;
 
@@ -185,7 +217,7 @@ namespace Fluorite.Direct
 
             public override void SetLength(long value) =>
                 throw new NotImplementedException();
-            #endregion
+#endregion
         }
 
         public static PipelinedStreamPair Create()

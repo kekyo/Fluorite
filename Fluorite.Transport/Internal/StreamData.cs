@@ -19,25 +19,17 @@
 
 using System;
 using System.Diagnostics;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace Fluorite.Internal
 {
-    internal sealed class StreamData : IDisposable
+    internal sealed class StreamData
     {
         private ArraySegment<byte> data;
-        private readonly TaskCompletionSource<bool> completion = new();
-        private readonly IDisposable registration;
 
-        public StreamData(byte[] data, int offset, int size, CancellationToken token)
+        public StreamData(byte[] data, int offset, int size)
         {
             this.data = new ArraySegment<byte>(data, offset, size);
-            this.registration = token.Register(() => this.completion.TrySetCanceled());
         }
-
-        public Task Task =>
-            this.completion.Task;
 
         public ArraySegment<byte> GetData()
         {
@@ -54,24 +46,6 @@ namespace Fluorite.Internal
                 Debug.Assert(this.data.Count >= size);
                 this.data = new ArraySegment<byte>(this.data.Array!, this.data.Offset + size, this.data.Count - size);
             }
-        }
-
-        public void Dispose()
-        {
-            this.completion.TrySetCanceled();
-            this.registration.Dispose();
-        }
-
-        public void SetCompleted()
-        {
-            this.completion.TrySetResult(true);
-            this.registration.Dispose();
-        }
-
-        public void SetException(Exception ex)
-        {
-            this.completion.TrySetException(ex);
-            this.registration.Dispose();
         }
     }
 }

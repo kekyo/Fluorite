@@ -63,8 +63,11 @@ namespace Fluorite.Direct
             {
                 try
                 {
-                    await this.peer!.OnReceivedAsync(fromRead).
-                        ConfigureAwait(false);
+                    using (fromRead)
+                    {
+                        await this.peer!.OnReceivedAsync(fromRead).
+                            ConfigureAwait(false);
+                    }
                 }
                 catch (Exception ex)
                 {

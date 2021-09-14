@@ -589,7 +589,7 @@ namespace Fluorite
         }
 
         [Test]
-        public async Task LargeDataInResult()
+        public async Task LargeDataOutResult()
         {
             var (server, client) = Utilities.CreateDirectAttachedNestPair();
             server.Register(new TestClass7());

@@ -71,7 +71,7 @@ namespace Fluorite.WebSockets
                     {
                         var shutdownTask = this.shutdown!.Task;
                         await this.controller.RunAsync(this.OnReceivedAsync, shutdownTask).
-                            ConfigureAwait(false); ;
+                            ConfigureAwait(false);
                     }
                     catch (Exception ex)
                     {
